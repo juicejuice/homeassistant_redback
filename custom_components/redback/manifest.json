@@ -1,0 +1,17 @@
+{
+  "domain": "redback",
+  "name": "Redback Technologies Smart Hybrid System",
+  "version": "0.1",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/redback",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": [],
+  "homekit": {},
+  "dependencies": [],
+  "codeowners": [
+    "@juicejuice"
+  ],
+  "iot_class": "cloud_polling",
+  "loggers": "redback"
+}
