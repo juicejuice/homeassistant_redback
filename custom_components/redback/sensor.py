@@ -51,11 +51,11 @@ class RedbackChargeSensor(
     """Battery SoC (state of charge)"""
 
     coordinator: RedbackDataUpdateCoordinator
-    _attr_name = "Battery SoC"
+    _attr_name = "Battery Charge"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_device_class = SensorDeviceClass.BATTERY
-    _attr_native_value = 0.1
+    _attr_native_value = 0
 
     def __init__(self, coordinator: RedbackDataUpdateCoordinator) -> None:
         """Pass coordinator to CoordinatorEntity."""
@@ -67,5 +67,5 @@ class RedbackChargeSensor(
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.info("Updating entity: %s", self._attr_unique_id)
-        self._attr_native_value += 0.01
+        self._attr_native_value = self.coordinator.energy_data["BatterySoC0to100"]
         self.async_write_ha_state()
