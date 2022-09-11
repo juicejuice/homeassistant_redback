@@ -10,6 +10,7 @@ class RedbackError(Exception):
     """ Redback Inverter error """
     pass
 
+
 class RedbackInverter:
     """ Gather Redback Inverter data from the cloud API """
     
@@ -21,7 +22,6 @@ class RedbackInverter:
     _energyData = None
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
-    _testMode = False
 
     def __init__(self, cookie, serial):
         """ Constructor: needs API auth cookie and inverter serial number """
@@ -32,10 +32,6 @@ class RedbackInverter:
 
     def _apiRequest(self, apimethod):
         """ Call into Redback cloud API """
-
-        # return test data instead of real API calls
-        if (self._testMode):
-            return self._apiTestRequest(apimethod)
 
         if (apimethod == 'energyflowd2'):
             # https://portal.redbacktech.com/api/v2/energyflowd2/$SERIAL
@@ -62,20 +58,6 @@ class RedbackInverter:
 
         return data
 
-    def _apiTestRequest(self, apimethod):
-        match apimethod:
-            case 'inverterinfo':
-                return {'Model': 'ST10000', 'Firmware': '080819', 'RossVersion': '2.15.32207.13', 'IsThreePhaseInverter': True, 'IsSmartBatteryInverter': False, 'IsSinglePhaseInverter': False, 'IsGridTieInverter': False}
-            case 'BannerInfo':
-                return {'ProductDisplayname': 'Smart Inverter TEST', 'InstalledPvSizeWatts': 9960.0, 'BatteryCapacityWattHours': 14000.001}
-            case 'energyflowd2':
-                return {'Data':{'Input':{'ACLoadW': 123.0, 'BackupLoadW': 0.0, 'SupportsConnectedPV': True, 'PVW': 456.0, 'ThirdPartyW': None, 'GridStatus': 'Export', 'GridNegativeIsImportW': -123.0, 'ConfiguredWithBatteries': True, 'BatteryNegativeIsChargingW': 403.308, 'BatteryStatus': 'Discharging', 'BatterySoC0to100': 51.0, 'CtComms': True}}}
-                
-        raise RedbackError('Test Mode: unknown API method %s', apimethod)
-
-    def setTestMode(self, testMode):
-        self._testMode = testMode
-
     def getInverterInfo(self):
         """ Returns inverter info (static data, updated first use only) """
 
@@ -99,4 +81,19 @@ class RedbackInverter:
 
         # keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
         return self._energyData
+
+
+class TestRedbackInverter(RedbackInverter):
+    """ Test class for Redback Inverter integration, returns sample data without any API calls """
+
+    def _apiRequest(self, apimethod):
+        match apimethod:
+            case 'inverterinfo':
+                return {'Model': 'ST10000', 'Firmware': '080819', 'RossVersion': '2.15.32207.13', 'IsThreePhaseInverter': True, 'IsSmartBatteryInverter': False, 'IsSinglePhaseInverter': False, 'IsGridTieInverter': False}
+            case 'BannerInfo':
+                return {'ProductDisplayname': 'Smart Inverter TEST', 'InstalledPvSizeWatts': 9960.0, 'BatteryCapacityWattHours': 14000.001}
+            case 'energyflowd2':
+                return {'Data':{'Input':{'ACLoadW': 123.0, 'BackupLoadW': 0.0, 'SupportsConnectedPV': True, 'PVW': 456.0, 'ThirdPartyW': None, 'GridStatus': 'Export', 'GridNegativeIsImportW': -123.0, 'ConfiguredWithBatteries': True, 'BatteryNegativeIsChargingW': 403.308, 'BatteryStatus': 'Discharging', 'BatterySoC0to100': 51.0, 'CtComms': True}}}
+                
+        raise RedbackError('TestRedbackInverter: unknown API method "%s"', apimethod)
 
