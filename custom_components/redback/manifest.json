@@ -1,6 +1,6 @@
 {
   "domain": "redback",
-  "name": "Redback Technologies Smart Hybrid System",
+  "name": "Redback Technologies Portal",
   "version": "0.1",
   "config_flow": true,
   "documentation": "https://www.home-assistant.io/integrations/redback",

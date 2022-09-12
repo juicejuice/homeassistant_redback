@@ -27,12 +27,9 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-)
 
 from .const import DOMAIN, LOGGER
-from .coordinator import RedbackDataUpdateCoordinator
+from .entity import RedbackEntity
 
 
 async def async_setup_entry(
@@ -45,23 +42,18 @@ async def async_setup_entry(
     async_add_entities([RedbackChargeSensor(hass.data[DOMAIN][entry.entry_id])])
 
 
-class RedbackChargeSensor(
-    CoordinatorEntity[RedbackDataUpdateCoordinator], SensorEntity
-):
-    """Battery SoC (state of charge)"""
+class RedbackChargeSensor(RedbackEntity, SensorEntity):
+    """Sensor for battery state-of-charge"""
 
-    coordinator: RedbackDataUpdateCoordinator
     _attr_name = "Battery Charge"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_device_class = SensorDeviceClass.BATTERY
-    _attr_native_value = 0
 
-    def __init__(self, coordinator: RedbackDataUpdateCoordinator) -> None:
-        """Pass coordinator to CoordinatorEntity."""
-        self.coordinator = coordinator
-        self._attr_unique_id = coordinator.config_entry.data["serial"] + "-soc"
-        super().__init__(coordinator)
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_charge"
 
     @callback
     def _handle_coordinator_update(self) -> None:
