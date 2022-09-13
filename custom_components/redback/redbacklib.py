@@ -109,23 +109,23 @@ class TestRedbackInverter(RedbackInverter):
             return {
                 "ProductDisplayname": "Smart Inverter TEST",
                 "InstalledPvSizeWatts": 9960.0,
-                "BatteryCapacityWattHours": 14000.001,
+                "BatteryCapacityWattHours": 14200.001,
             }
         elif apimethod == "energyflowd2":
             return {
                 "Data": {
                     "Input": {
-                        "ACLoadW": 123.0,
-                        "BackupLoadW": 0.0,
+                        "ACLoadW": 1450.0,
+                        "BackupLoadW": 11.0,
                         "SupportsConnectedPV": True,
-                        "PVW": 456.0,
+                        "PVW": 7579.0,
                         "ThirdPartyW": None,
                         "GridStatus": "Export",
-                        "GridNegativeIsImportW": -123.0,
+                        "GridNegativeIsImportW": 6200.0,
                         "ConfiguredWithBatteries": True,
-                        "BatteryNegativeIsChargingW": 403.308,
-                        "BatteryStatus": "Discharging",
-                        "BatterySoC0to100": 51.0,
+                        "BatteryNegativeIsChargingW": 0.0,
+                        "BatteryStatus": "Idle",
+                        "BatterySoC0to100": 98.0,
                         "CtComms": True,
                     }
                 }

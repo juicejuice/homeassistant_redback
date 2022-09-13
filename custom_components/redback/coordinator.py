@@ -7,7 +7,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 # from homeassistant.exceptions import ConfigEntryAuthFailed
 
-from .const import DOMAIN, LOGGER, SCAN_INTERVAL
+from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
 from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError
 
 
@@ -21,16 +21,25 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the Redback coordinator."""
         self.config_entry = entry
-        self.redback = TestRedbackInverter(
-            cookie=entry.data["apikey"], serial=entry.data["serial"]
-        )
+
+        # RedbackInverter is the API connection to the Redback cloud portal
+        if TEST_MODE:
+            self.redback = TestRedbackInverter(
+                cookie=entry.data["apikey"], serial=entry.data["serial"]
+            )
+        else:
+            self.redback = RedbackInverter(
+                cookie=entry.data["apikey"], serial=entry.data["serial"]
+            )
+
+        # these are the basic inverter details we always need
         self.inverter_info = self.redback.getInverterInfo()
 
         super().__init__(hass, LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
     async def _async_update_data(self):
         """Fetch system status from Redback."""
-        LOGGER.info(
+        LOGGER.debug(
             "Syncing data with Redback (entry_id=%s)", self.config_entry.entry_id
         )
 

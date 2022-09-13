@@ -14,12 +14,10 @@ from .const import LOGGER, DOMAIN, API_METHODS, API_URLS
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
+        vol.Optional("displayname", default="Redback"): str,
         vol.Required("apimethod", default=API_METHODS[0]): vol.In(API_METHODS),
         vol.Required("serial"): str,
         vol.Required("apikey"): str,
-        # vol.Required("host"): str,
-        # vol.Required("username"): str,
-        # vol.Required("password"): str,
     }
 )
 
@@ -60,7 +58,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # InvalidAuth
 
     # Return info that you want to store in the config entry.
-    return {"title": "Redback Device"}
+    display_name = f"Inverter {data['serial']}"
+    if "displayname" in data and data["displayname"] != "":
+        display_name = data["displayname"]
+    else:
+        data["displayname"] = data["serial"]
+    return {"title": display_name}
 
 
 class RedbackConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):

@@ -6,6 +6,7 @@ import logging
 
 DOMAIN = "redback"
 PLATFORMS = [Platform.SENSOR]
+TEST_MODE = True
 
 LOGGER = logging.getLogger(__package__)
 SCAN_INTERVAL = timedelta(minutes=1)

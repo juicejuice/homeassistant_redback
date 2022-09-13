@@ -3,7 +3,7 @@
   "name": "Redback Technologies Portal",
   "version": "0.1",
   "config_flow": true,
-  "documentation": "https://www.home-assistant.io/integrations/redback",
+  "documentation": "https://github.com/juicejuice/homeassistant_redback",
   "requirements": [],
   "ssdp": [],
   "zeroconf": [],
