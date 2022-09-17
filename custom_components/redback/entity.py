@@ -29,6 +29,7 @@ class RedbackEntity(CoordinatorEntity[RedbackDataUpdateCoordinator]):
             self._attr_name = details["name"]
             self.id_suffix = details["id_suffix"]
             self.data_source = details["data_source"]
+            self.direction = details.get("direction")
 
         # link to the base Redback device
         self._attr_device_info = DeviceInfo(

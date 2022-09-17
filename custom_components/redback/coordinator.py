@@ -25,11 +25,11 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
         # RedbackInverter is the API connection to the Redback cloud portal
         if TEST_MODE:
             self.redback = TestRedbackInverter(
-                cookie=entry.data["apikey"], serial=entry.data["serial"]
+                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"]
             )
         else:
             self.redback = RedbackInverter(
-                cookie=entry.data["apikey"], serial=entry.data["serial"]
+                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"]
             )
 
         # these are the basic inverter details we always need

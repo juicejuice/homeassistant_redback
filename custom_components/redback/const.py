@@ -15,8 +15,3 @@ API_METHODS = [
     "private",
     "public",
 ]
-
-API_URLS = {
-    "private": "https://portal.redbacktech.com/",
-    "public": "https://api.redbacktech.com/",
-}

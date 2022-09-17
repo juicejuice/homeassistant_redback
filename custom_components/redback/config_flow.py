@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import LOGGER, DOMAIN, API_METHODS, API_URLS
+from .const import LOGGER, DOMAIN, API_METHODS
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -47,7 +47,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     #     your_validate_func, data["username"], data["password"]
     # )
 
-    hub = RedbackHub(API_URLS[data["apimethod"]])
+    hub = RedbackHub('test')
 
     if not await hub.authenticate(data["apikey"]):
         raise InvalidAuth

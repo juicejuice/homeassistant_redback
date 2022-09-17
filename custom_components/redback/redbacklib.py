@@ -15,6 +15,7 @@ class RedbackInverter:
     """Gather Redback Inverter data from the cloud API"""
 
     serial = None
+    _apiMethod = "private"
     _apiBaseURL = "https://portal.redbacktech.com/api/v2/"
     _apiCookie = ""
     _apiResponse = "json"
@@ -23,22 +24,23 @@ class RedbackInverter:
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
 
-    def __init__(self, cookie, serial):
+    def __init__(self, cookie, serial, apimethod):
         """Constructor: needs API auth cookie and inverter serial number"""
 
         self.serial = serial
         self._apiSerial = "?SerialNumber=" + serial
         self._apiCookie = cookie
+        self._apiMethod = apimethod # stored but ignored, for now
 
-    def _apiRequest(self, apimethod):
+    def _apiRequest(self, endpoint):
         """Call into Redback cloud API"""
 
-        if apimethod == "energyflowd2":
+        if endpoint == "energyflowd2":
             # https://portal.redbacktech.com/api/v2/energyflowd2/$SERIAL
-            full_url = self._apiBaseURL + apimethod + "/" + self.serial
+            full_url = self._apiBaseURL + endpoint + "/" + self.serial
         else:
             # https://portal.redbacktech.com/api/v2/inverterinfo?SerialNumber=$SERIAL
-            full_url = self._apiBaseURL + apimethod + self._apiSerial
+            full_url = self._apiBaseURL + endpoint + self._apiSerial
 
         request = Request(full_url)
         request.add_header("Cookie", self._apiCookie)
@@ -94,8 +96,8 @@ class RedbackInverter:
 class TestRedbackInverter(RedbackInverter):
     """Test class for Redback Inverter integration, returns sample data without any API calls"""
 
-    def _apiRequest(self, apimethod):
-        if apimethod == "inverterinfo":
+    def _apiRequest(self, endpoint):
+        if endpoint == "inverterinfo":
             return {
                 "Model": "ST10000",
                 "Firmware": "080819",
@@ -105,13 +107,13 @@ class TestRedbackInverter(RedbackInverter):
                 "IsSinglePhaseInverter": False,
                 "IsGridTieInverter": False,
             }
-        elif apimethod == "BannerInfo":
+        elif endpoint == "BannerInfo":
             return {
                 "ProductDisplayname": "Smart Inverter TEST",
                 "InstalledPvSizeWatts": 9960.0,
                 "BatteryCapacityWattHours": 14200.001,
             }
-        elif apimethod == "energyflowd2":
+        elif endpoint == "energyflowd2":
             return {
                 "Data": {
                     "Input": {
@@ -131,4 +133,4 @@ class TestRedbackInverter(RedbackInverter):
                 }
             }
         else:
-            raise RedbackError(f"TestRedbackInverter: unknown API method {apimethod}")
+            raise RedbackError(f"TestRedbackInverter: unknown API endpoint {endpoint}")
