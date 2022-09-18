@@ -1,5 +1,7 @@
 """ Redback Inverter library, for download of cloud portal data """
 
+import aiohttp
+import asyncio
 from datetime import datetime, timedelta
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
@@ -26,13 +28,16 @@ class RedbackInverter:
 
     def __init__(self, cookie, serial, apimethod):
         """Constructor: needs API auth cookie and inverter serial number"""
-
+        self._session = aiohttp.ClientSession()
         self.serial = serial
         self._apiSerial = "?SerialNumber=" + serial
         self._apiCookie = cookie
         self._apiMethod = apimethod # stored but ignored, for now
 
-    def _apiRequest(self, endpoint):
+    async def close(self):
+        await self._session.close()
+
+    async def _apiRequest(self, endpoint):
         """Call into Redback cloud API"""
 
         if endpoint == "energyflowd2":
@@ -42,11 +47,16 @@ class RedbackInverter:
             # https://portal.redbacktech.com/api/v2/inverterinfo?SerialNumber=$SERIAL
             full_url = self._apiBaseURL + endpoint + self._apiSerial
 
-        request = Request(full_url)
-        request.add_header("Cookie", self._apiCookie)
-
         try:
-            response = urlopen(request)
+            response = await self._session.get(full_url, headers={"Cookie": self._apiCookie}) 
+        except aiohttp.ClientSSLError as e:
+            raise RedbackError(
+                f"SSL Error. {e.reason}"
+            ) from e
+        except aiohttp.ClientResponseError as e:
+            raise RedbackError(
+                f"HTTP Response Error. {e.code} {e.reason} (Has the .AspNet.ApplicationCookie expired?)"
+            ) from e
         except HTTPError as e:
             raise RedbackError(
                 f"HTTP Error. {e.code} {e.reason} (Has the .AspNet.ApplicationCookie expired?)"
@@ -56,7 +66,7 @@ class RedbackInverter:
 
         # collect data packet
         try:
-            data = json.loads(response.read())
+            data = await response.json()
         except JSONDecodeError as e:
             raise RedbackError(
                 f"JSON Error. {e.msg}. Pos={e.pos} Line={e.lineno} Col={e.colno}"
@@ -64,12 +74,12 @@ class RedbackInverter:
 
         return data
 
-    def getInverterInfo(self):
+    async def getInverterInfo(self):
         """Returns inverter info (static data, updated first use only)"""
 
         if self._inverterInfo == None:
-            self._inverterInfo = self._apiRequest("inverterinfo")
-            bannerInfo = self._apiRequest("BannerInfo")
+            self._inverterInfo = await self._apiRequest("inverterinfo")
+            bannerInfo = await self._apiRequest("BannerInfo")
             self._inverterInfo["ProductDisplayname"] = bannerInfo["ProductDisplayname"]
             self._inverterInfo["InstalledPvSizeWatts"] = bannerInfo[
                 "InstalledPvSizeWatts"
@@ -81,12 +91,12 @@ class RedbackInverter:
         # keys: Model, Firmware, RossVersion, IsThreePhaseInverter, IsSmartBatteryInverter, IsSinglePhaseInverter, IsGridTieInverter, ProductDisplayname, InstalledPvSizeWatts, BatteryCapacityWattHours
         return self._inverterInfo
 
-    def getEnergyData(self):
+    async def getEnergyData(self):
         """Returns energy data (dynamic data, instantaneous with 60s resolution)"""
 
         # energy data in the cloud data store is only refreshed by the Ouija device every 60s
         if datetime.now() > self._energyDataNextUpdate or self._energyData == None:
-            self._energyData = self._apiRequest("energyflowd2")["Data"]["Input"]
+            self._energyData = await self._apiRequest("energyflowd2")["Data"]["Input"]
             self._energyDataNextUpdate = datetime.now() + self._energyDataUpdateInterval
 
         # keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
@@ -96,7 +106,7 @@ class RedbackInverter:
 class TestRedbackInverter(RedbackInverter):
     """Test class for Redback Inverter integration, returns sample data without any API calls"""
 
-    def _apiRequest(self, endpoint):
+    async def _apiRequest(self, endpoint):
         if endpoint == "inverterinfo":
             return {
                 "Model": "ST10000",
