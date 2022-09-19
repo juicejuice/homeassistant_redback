@@ -26,16 +26,13 @@ class RedbackInverter:
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
 
-    def __init__(self, cookie, serial, apimethod):
+    def __init__(self, cookie, serial, apimethod, session):
         """Constructor: needs API auth cookie and inverter serial number"""
-        self._session = aiohttp.ClientSession()
+        self._session = session
         self.serial = serial
         self._apiSerial = "?SerialNumber=" + serial
         self._apiCookie = cookie
         self._apiMethod = apimethod # stored but ignored, for now
-
-    async def close(self):
-        await self._session.close()
 
     async def _apiRequest(self, endpoint):
         """Call into Redback cloud API"""
@@ -96,7 +93,7 @@ class RedbackInverter:
 
         # energy data in the cloud data store is only refreshed by the Ouija device every 60s
         if datetime.now() > self._energyDataNextUpdate or self._energyData == None:
-            self._energyData = await self._apiRequest("energyflowd2")["Data"]["Input"]
+            self._energyData = (await self._apiRequest("energyflowd2"))["Data"]["Input"]
             self._energyDataNextUpdate = datetime.now() + self._energyDataUpdateInterval
 
         # keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms

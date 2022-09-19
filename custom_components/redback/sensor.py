@@ -9,7 +9,6 @@ from homeassistant.core import (
 from homeassistant.config_entries import ConfigEntry
 
 # from homeassistant.exceptions import ConfigEntryAuthFailed
-# from homeassistant.helpers.aiohttp_client import async_get_clientsession
 # from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 # , UpdateFailed
@@ -17,10 +16,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ELECTRIC_CURRENT_AMPERE,
     ELECTRIC_POTENTIAL_VOLT,
-    ENERGY_KILO_WATT_HOUR,
+    ENERGY_WATT_HOUR,
     FREQUENCY_HERTZ,
     PERCENTAGE,
-    POWER_KILO_WATT,
+    POWER_WATT,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import (
@@ -154,7 +153,7 @@ async def async_setup_entry(
 class RedbackChargeSensor(RedbackEntity, SensorEntity):
     """Sensor for battery state-of-charge"""
 
-    _attr_name = "Battery Charge"
+    _attr_name = "Battery SoC"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_device_class = SensorDeviceClass.BATTERY
@@ -162,7 +161,7 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     @property
     def unique_id(self) -> str:
         """Device Uniqueid."""
-        return f"{self.base_unique_id}_charge"
+        return f"{self.base_unique_id}_soc"
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -177,7 +176,7 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
 
     _attr_name = "Power"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = POWER_KILO_WATT
+    _attr_native_unit_of_measurement = POWER_WATT
     _attr_device_class = SensorDeviceClass.POWER
 
     @property
@@ -197,7 +196,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
 
     _attr_name = "Energy"
     _attr_state_class = SensorStateClass.TOTAL
-    _attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
+    _attr_native_unit_of_measurement = ENERGY_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
 
     @property
@@ -213,7 +212,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
         if(self.direction == "positive"):
             measurement = max(measurement, 0)
         else:
-            measurement = min(measurement, 0)
-        self._attr_native_value = measurement / 60000 # convert from W to kWh (sampling resolution is 60s)
+            measurement = 0 - min(measurement, 0)
+        self._attr_native_value = measurement / 60 # assume the power measurement was for 60s
         self._attr_last_reset = datetime.now() - timedelta(minutes=1)
         self.async_write_ha_state()

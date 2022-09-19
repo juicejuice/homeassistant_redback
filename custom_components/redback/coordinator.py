@@ -5,6 +5,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 # from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
@@ -15,25 +16,21 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
     """The Redback Data Update Coordinator."""
 
     config_entry: ConfigEntry
-    inverter_info: None
-    energy_data: None
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the Redback coordinator."""
         self.config_entry = entry
+        clientsession = async_get_clientsession(hass)
 
         # RedbackInverter is the API connection to the Redback cloud portal
         if TEST_MODE:
             self.redback = TestRedbackInverter(
-                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"]
+                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"], session=clientsession
             )
         else:
             self.redback = RedbackInverter(
-                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"]
+                cookie=entry.data["apikey"], serial=entry.data["serial"], apimethod=entry.data["apimethod"], session=clientsession
             )
-
-        # these are the basic inverter details we always need
-        self.inverter_info = self.redback.getInverterInfo()
 
         super().__init__(hass, LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
@@ -44,9 +41,13 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
         try:
-            self.energy_data = self.redback.getEnergyData()
+            if (not hasattr(self, "inverter_info")):
+                self.inverter_info = await self.redback.getInverterInfo()
+            self.energy_data = await self.redback.getEnergyData()
         except RedbackError as err:
             raise UpdateFailed("Redback API error: {err}") from err
+
+        return self.energy_data
 
         # try:
         #     return await self.pvoutput.status()
