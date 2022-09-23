@@ -46,9 +46,9 @@ class RedbackInverter:
 
         try:
             response = await self._session.get(full_url, headers={"Cookie": self._apiCookie}) 
-        except aiohttp.ClientSSLError as e:
+        except aiohttp.ClientConnectorError as e:
             raise RedbackError(
-                f"SSL Error. {e.reason}"
+                f"HTTP Connection Error. {e}"
             ) from e
         except aiohttp.ClientResponseError as e:
             raise RedbackError(
@@ -60,6 +60,11 @@ class RedbackInverter:
             ) from e
         except URLError as e:
             raise RedbackError(f"URL Error. {e.reason}") from e
+
+        # check for API error (e.g. expired credentials or invalid serial)
+        if not response.ok:
+            message = await response.text()
+            raise RedbackError(f"API Error. {response.status} {response.reason}. {message}")
 
         # collect data packet
         try:
