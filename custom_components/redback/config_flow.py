@@ -9,8 +9,10 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import LOGGER, DOMAIN, API_METHODS
+from .const import LOGGER, DOMAIN, API_METHODS, TEST_MODE
+from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
@@ -22,40 +24,33 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 )
 
 
-class RedbackHub:
-    """Redback connection hub"""
-
-    def __init__(self, host: str) -> None:
-        """Initialize."""
-        self.host = host
-
-    async def authenticate(self, apikey: str) -> bool:
-        """Test if we can authenticate with the host."""
-        return True
-
-
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
 
     Data has the keys from STEP_USER_DATA_SCHEMA with values provided by the user.
     """
-    # TODO validate the data can be used to set up a connection.
 
-    # If your PyPI package is not built with async, pass your methods
-    # to the executor:
-    # await hass.async_add_executor_job(
-    #     your_validate_func, data["username"], data["password"]
-    # )
+    clientsession = async_get_clientsession(hass)
 
-    hub = RedbackHub('test')
+    # RedbackInverter is the API connection to the Redback cloud portal
+    if TEST_MODE:
+        redback = TestRedbackInverter(
+            cookie=data["apikey"], serial=data["serial"], apimethod=data["apimethod"], session=clientsession
+        )
+    else:
+        redback = RedbackInverter(
+            cookie=data["apikey"], serial=data["serial"], apimethod=data["apimethod"], session=clientsession
+        )
 
-    if not await hub.authenticate(data["apikey"]):
-        raise InvalidAuth
-
-    # If you cannot connect:
-    # throw CannotConnect
-    # If the authentication is wrong:
-    # InvalidAuth
+    try:
+        result = await redback.testConnection()
+        assert result == True
+    except RedbackAPIError as e:
+        LOGGER.debug(f"Validation error: {e}")
+        raise InvalidAuth from e
+    except RedbackError as e:
+        LOGGER.debug(f"Connection error: {e}")
+        raise CannotConnect from e
 
     # Return info that you want to store in the config entry.
     display_name = f"Inverter {data['serial']}"

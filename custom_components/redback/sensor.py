@@ -16,10 +16,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ELECTRIC_CURRENT_AMPERE,
     ELECTRIC_POTENTIAL_VOLT,
-    ENERGY_WATT_HOUR,
+    ENERGY_KILO_WATT_HOUR,
     FREQUENCY_HERTZ,
     PERCENTAGE,
-    POWER_WATT,
+    POWER_KILO_WATT,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import (
@@ -176,7 +176,7 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
 
     _attr_name = "Power"
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = POWER_WATT
+    _attr_native_unit_of_measurement = POWER_KILO_WATT
     _attr_device_class = SensorDeviceClass.POWER
 
     @property
@@ -188,7 +188,7 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self._attr_native_value = self.coordinator.energy_data[self.data_source] / 1000 # measurement is in Watts
         self.async_write_ha_state()
 
 class RedbackEnergySensor(RedbackEntity, SensorEntity):
@@ -196,7 +196,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
 
     _attr_name = "Energy"
     _attr_state_class = SensorStateClass.TOTAL
-    _attr_native_unit_of_measurement = ENERGY_WATT_HOUR
+    _attr_native_unit_of_measurement = ENERGY_KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
 
     @property
@@ -213,6 +213,6 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
             measurement = max(measurement, 0)
         else:
             measurement = 0 - min(measurement, 0)
-        self._attr_native_value = measurement / 60 # assume the power measurement was for 60s
+        self._attr_native_value = measurement / 60000 # power measurement is in Watts for last 60s
         self._attr_last_reset = datetime.now() - timedelta(minutes=1)
         self.async_write_ha_state()

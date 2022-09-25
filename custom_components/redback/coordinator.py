@@ -9,7 +9,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 # from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
-from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError
+from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError
 
 
 class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
@@ -45,13 +45,9 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
                 self.inverter_info = await self.redback.getInverterInfo()
             self.energy_data = await self.redback.getEnergyData()
         except RedbackError as err:
-            raise UpdateFailed("Redback API error: {err}") from err
+            raise UpdateFailed("Connection error: {err}") from err
+        except RedbackAPIError as err:
+            raise UpdateFailed("API error: {err}") from err
 
         return self.energy_data
 
-        # try:
-        #     return await self.pvoutput.status()
-        # except PVOutputNoDataError as err:
-        #     raise UpdateFailed("PVOutput has no data available") from err
-        # except PVOutputAuthenticationError as err:
-        #     raise ConfigEntryAuthFailed from err

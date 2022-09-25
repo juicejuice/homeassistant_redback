@@ -10,7 +10,10 @@ from json.decoder import JSONDecodeError
 
 
 class RedbackError(Exception):
-    """Redback Inverter error"""
+    """Redback Inverter connection error"""
+
+class RedbackAPIError(Exception):
+    """Redback Inverter API error"""
 
 
 class RedbackInverter:
@@ -52,11 +55,11 @@ class RedbackInverter:
             ) from e
         except aiohttp.ClientResponseError as e:
             raise RedbackError(
-                f"HTTP Response Error. {e.code} {e.reason} (Has the .AspNet.ApplicationCookie expired?)"
+                f"HTTP Response Error. {e.code} {e.reason}"
             ) from e
         except HTTPError as e:
             raise RedbackError(
-                f"HTTP Error. {e.code} {e.reason} (Has the .AspNet.ApplicationCookie expired?)"
+                f"HTTP Error. {e.code} {e.reason}"
             ) from e
         except URLError as e:
             raise RedbackError(f"URL Error. {e.reason}") from e
@@ -64,17 +67,24 @@ class RedbackInverter:
         # check for API error (e.g. expired credentials or invalid serial)
         if not response.ok:
             message = await response.text()
-            raise RedbackError(f"API Error. {response.status} {response.reason}. {message}")
+            raise RedbackAPIError(f"{response.status} {response.reason}. {message}")
 
         # collect data packet
         try:
             data = await response.json()
         except JSONDecodeError as e:
-            raise RedbackError(
+            raise RedbackAPIError(
                 f"JSON Error. {e.msg}. Pos={e.pos} Line={e.lineno} Col={e.colno}"
             ) from e
 
         return data
+
+    async def testConnection(self):
+        """Tests the API connection, will return True or raise RedbackError or RedbackAPIError"""
+
+        testData = await self._apiRequest("inverterinfo")
+
+        return True
 
     async def getInverterInfo(self):
         """Returns inverter info (static data, updated first use only)"""
@@ -145,4 +155,4 @@ class TestRedbackInverter(RedbackInverter):
                 }
             }
         else:
-            raise RedbackError(f"TestRedbackInverter: unknown API endpoint {endpoint}")
+            raise RedbackAPIError(f"TestRedbackInverter: unknown API endpoint {endpoint}")

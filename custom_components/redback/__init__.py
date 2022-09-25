@@ -14,8 +14,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     # Data Update Coordinator
-    # 1. calls into Redback API every SCAN_INTERVAL to download data
-    # 2. then calls each entity to update its own data
+    # 1. calls into Redback API every SCAN_INTERVAL to download and refresh data cache
+    # 2. then calls each entity to update its own data from cache
     coordinator = RedbackDataUpdateCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
