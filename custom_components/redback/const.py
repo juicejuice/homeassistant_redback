@@ -12,6 +12,6 @@ LOGGER = logging.getLogger(__package__)
 SCAN_INTERVAL = timedelta(minutes=1)
 
 API_METHODS = [
-    "private",
     "public",
+    "private",
 ]

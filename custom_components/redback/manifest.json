@@ -1,7 +1,7 @@
 {
   "domain": "redback",
   "name": "Redback Technologies Portal",
-  "version": "0.1",
+  "version": "0.2",
   "config_flow": true,
   "documentation": "https://github.com/juicejuice/homeassistant_redback",
   "requirements": [],

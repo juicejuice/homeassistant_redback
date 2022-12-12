@@ -8,8 +8,8 @@
           "password": "[%key:common::config_flow::data::password%]",
           "displayname": "Friendly name for device",
           "apimethod": "API Method",
-          "serial": "Redback Serial Number",
-          "apikey": "[%key:common::config_flow::data::api_key%]"
+          "client_id": "Redback ID",
+          "auth": "Redback Authentication"
         }
       }
     },

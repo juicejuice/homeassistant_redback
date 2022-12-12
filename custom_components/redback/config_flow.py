@@ -18,11 +18,14 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Optional("displayname", default="Redback"): str,
         vol.Required("apimethod", default=API_METHODS[0]): vol.In(API_METHODS),
-        vol.Required("serial"): str,
-        vol.Required("apikey"): str,
+        vol.Required("client_id"): str,
+        vol.Required("auth"): str,
     }
 )
 
+# Notes:
+# 1. for "private" API method, client_id = Redback serial number, auth = authentication cookie
+# 2. for "public" API method, client_id = Redback client ID, auth = authentication credential/secret
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
@@ -35,11 +38,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # RedbackInverter is the API connection to the Redback cloud portal
     if TEST_MODE:
         redback = TestRedbackInverter(
-            cookie=data["apikey"], serial=data["serial"], apimethod=data["apimethod"], session=clientsession
+            auth=data["auth"], auth_id=data["client_id"], apimethod=data["apimethod"], session=clientsession
         )
     else:
         redback = RedbackInverter(
-            cookie=data["apikey"], serial=data["serial"], apimethod=data["apimethod"], session=clientsession
+            auth=data["auth"], auth_id=data["client_id"], apimethod=data["apimethod"], session=clientsession
         )
 
     try:
@@ -53,11 +56,12 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         raise CannotConnect from e
 
     # Return info that you want to store in the config entry.
-    display_name = f"Inverter {data['serial']}"
+    # TODO: change client_id out for something meaningful like serial number (can that be from the testConnection?
+    display_name = f"Inverter {data['client_id']}"
     if "displayname" in data and data["displayname"] != "":
         display_name = data["displayname"]
     else:
-        data["displayname"] = data["serial"]
+        data["displayname"] = data["client_id"]
     return {"title": display_name}
 
 

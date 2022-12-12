@@ -16,8 +16,8 @@
                     "username": "Username",
                     "displayname": "Friendly name for device",
                     "apimethod": "API Method",
-                    "serial": "Redback Serial Number",
-                    "apikey": "API Key"
+                    "client_id": "Redback ID",
+                    "auth": "Redback Authentication"
                 }
             }
         }

@@ -23,19 +23,27 @@ class RedbackInverter:
     _apiMethod = "private"
     _apiBaseURL = "https://portal.redbacktech.com/api/v2/"
     _apiCookie = ""
+    _OAuth2_client_id = ""
+    _OAuth2_client_secret = ""
     _apiResponse = "json"
     _inverterInfo = None
     _energyData = None
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
 
-    def __init__(self, cookie, serial, apimethod, session):
-        """Constructor: needs API auth cookie and inverter serial number"""
+    def __init__(self, auth_id, auth, apimethod, session):
+        """Constructor: needs API details (public = OAuth2 client_id and secret, private = auth cookie and inverter serial number)"""
         self._session = session
-        self.serial = serial
-        self._apiSerial = "?SerialNumber=" + serial
-        self._apiCookie = cookie
         self._apiMethod = apimethod # stored but ignored, for now
+        # Public API
+        if self._apiMethod == 'public':
+            self._OAuth2_client_id = auth_id
+            self._OAuth2_client_secret = auth
+        # Private API
+        else:
+            self.serial = auth_id
+            self._apiSerial = "?SerialNumber=" + self.serial
+            self._apiCookie = auth
 
     async def _apiRequest(self, endpoint):
         """Call into Redback cloud API"""
