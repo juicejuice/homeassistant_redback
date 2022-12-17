@@ -20,43 +20,119 @@ class RedbackInverter:
     """Gather Redback Inverter data from the cloud API"""
 
     serial = None
-    _apiMethod = "private"
-    _apiBaseURL = "https://portal.redbacktech.com/api/v2/"
+    siteId = None
+    _apiPrivate = True
+    _apiBaseURL = ""
     _apiCookie = ""
     _OAuth2_client_id = ""
     _OAuth2_client_secret = ""
+    _OAuth2_bearer_token = ""
+    _OAuth2_next_update = datetime.now()
     _apiResponse = "json"
     _inverterInfo = None
     _energyData = None
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
+    _apiPublicRequestMap = {
+        "public_BasicData": "EnergyData/With/Nodes",
+        "public_StaticData": "EnergyData/{self.siteId}/Static",
+        "public_DynamicData": "EnergyData/{self.siteId}/Dynamic?metadata=true"
+    }
 
     def __init__(self, auth_id, auth, apimethod, session):
         """Constructor: needs API details (public = OAuth2 client_id and secret, private = auth cookie and inverter serial number)"""
         self._session = session
-        self._apiMethod = apimethod # stored but ignored, for now
-        # Public API
-        if self._apiMethod == 'public':
-            self._OAuth2_client_id = auth_id
-            self._OAuth2_client_secret = auth
+        self._apiPrivate = (apimethod == 'private') # Public API vs Private API
+
         # Private API
-        else:
+        if self._apiPrivate:
+            self._apiBaseURL = "https://portal.redbacktech.com/api/v2/"
             self.serial = auth_id
             self._apiSerial = "?SerialNumber=" + self.serial
             self._apiCookie = auth
 
+        # Public API
+        else:
+            self._apiBaseURL = "https://api.redbacktech.com/Api/v2/"
+            self._OAuth2_client_id = auth_id.encode()
+            self._OAuth2_client_secret = auth.encode()
+
+    async def _apiGetBearerToken(self):
+        """Returns an active OAuth2 bearer token for use with public API methods"""
+
+        # do we need to request a new bearer token?
+        if datetime.now() > self._OAuth2_next_update:
+            full_url = self._apiBaseURL + 'Auth/token'
+            data = b'client_id=' + self._OAuth2_client_id + b'&client_secret=' + self._OAuth2_client_secret
+            headers = { "Content-Type": "application/x-www-form-urlencoded" }
+
+            # make HTTP POST request
+            try:
+                response = await self._session.post(url=full_url, data=data, headers=headers) 
+            except aiohttp.ClientConnectorError as e:
+                raise RedbackError(
+                    f"HTTP Connection Error. {e}"
+                ) from e
+            except aiohttp.ClientResponseError as e:
+                raise RedbackError(
+                    f"HTTP Response Error. {e.code} {e.reason}"
+                ) from e
+            except HTTPError as e:
+                # 400 Bad Request = client_id not found
+                # 401 Unauthorized = client_secret incorrect
+                # 404 Not Found = bad endpoint
+                # e.read().decode() returns Unicode string JSON, the "error" key defines the error type (https://www.oauth.com/oauth2-servers/access-tokens/access-token-response/)
+                raise RedbackError(
+                    f"HTTP Error. {e.code} {e.reason}"
+                ) from e
+            except URLError as e:
+                # If we get here, the URL is wrong or down
+                raise RedbackError(
+                    f"URL Error. {e.reason}"
+                ) from e
+
+            # collect data packet
+            try:
+                data = await response.json()
+            except JSONDecodeError as e:
+                raise RedbackAPIError(
+                    f"JSON Error. {e.msg}. Pos={e.pos} Line={e.lineno} Col={e.colno}"
+                ) from e
+
+            # build authorization string
+            self._OAuth2_bearer_token = data['token_type'] + ' ' + data['access_token']
+
+            # set update timeout
+            self._OAuth2_next_update = datetime.now() + timedelta(seconds=int(data['expires_in']))
+
+        return self._OAuth2_bearer_token
+
     async def _apiRequest(self, endpoint):
         """Call into Redback cloud API"""
 
-        if endpoint == "energyflowd2":
-            # https://portal.redbacktech.com/api/v2/energyflowd2/$SERIAL
-            full_url = self._apiBaseURL + endpoint + "/" + self.serial
+        request_headers = {}
+        full_url = ""
+
+        # Public API endpoint
+        if endpoint.startswith("public_"):
+            if not self.siteId and endpoint != "public_BasicData":
+                self.siteId = await self.getSiteId()
+            full_url = self._apiBaseURL + self._apiPublicRequestMap[endpoint]
+            full_url = eval(f"f'{full_url}'") # replace {vars} in full_url
+            request_headers = {"authorization": await self._apiGetBearerToken()} 
+
+        # Private API endpoint
         else:
-            # https://portal.redbacktech.com/api/v2/inverterinfo?SerialNumber=$SERIAL
-            full_url = self._apiBaseURL + endpoint + self._apiSerial
+            request_headers = {"Cookie": self._apiCookie} 
+            if endpoint == "energyflowd2":
+                # https://portal.redbacktech.com/api/v2/energyflowd2/$SERIAL
+                full_url = self._apiBaseURL + endpoint + "/" + self.serial
+            else:
+                # https://portal.redbacktech.com/api/v2/inverterinfo?SerialNumber=$SERIAL
+                full_url = self._apiBaseURL + endpoint + self._apiSerial
 
         try:
-            response = await self._session.get(full_url, headers={"Cookie": self._apiCookie}) 
+            response = await self._session.get(full_url, headers=request_headers) 
         except aiohttp.ClientConnectorError as e:
             raise RedbackError(
                 f"HTTP Connection Error. {e}"
@@ -90,25 +166,41 @@ class RedbackInverter:
     async def testConnection(self):
         """Tests the API connection, will return True or raise RedbackError or RedbackAPIError"""
 
-        testData = await self._apiRequest("inverterinfo")
+        if self._apiPrivate:
+            testData = await self._apiRequest("inverterinfo")
+        else:
+            testData = await self._apiRequest("public_BasicData")
 
         return True
+
+    async def getSiteId(self):
+        """Returns site ID via public API"""
+        data = await self._apiRequest("public_BasicData")
+        for item in data["Data"]:
+            if item["Type"] == "Site":
+                return item["Id"]
+        return None
 
     async def getInverterInfo(self):
         """Returns inverter info (static data, updated first use only)"""
 
         if self._inverterInfo == None:
-            self._inverterInfo = await self._apiRequest("inverterinfo")
-            bannerInfo = await self._apiRequest("BannerInfo")
-            self._inverterInfo["ProductDisplayname"] = bannerInfo["ProductDisplayname"]
-            self._inverterInfo["InstalledPvSizeWatts"] = bannerInfo[
-                "InstalledPvSizeWatts"
-            ]
-            self._inverterInfo["BatteryCapacityWattHours"] = bannerInfo[
-                "BatteryCapacityWattHours"
-            ]
+            if self._apiPrivate:
+                self._inverterInfo = await self._apiRequest("inverterinfo")
+                bannerInfo = await self._apiRequest("BannerInfo")
+                self._inverterInfo["ProductDisplayname"] = bannerInfo["ProductDisplayname"]
+                self._inverterInfo["InstalledPvSizeWatts"] = bannerInfo[
+                    "InstalledPvSizeWatts"
+                ]
+                self._inverterInfo["BatteryCapacityWattHours"] = bannerInfo[
+                    "BatteryCapacityWattHours"
+                ]
+            else:
+                self._inverterInfo = (await self._apiRequest("public_StaticData"))["Data"]
+                # TODO: might need to normalise this data
 
-        # keys: Model, Firmware, RossVersion, IsThreePhaseInverter, IsSmartBatteryInverter, IsSinglePhaseInverter, IsGridTieInverter, ProductDisplayname, InstalledPvSizeWatts, BatteryCapacityWattHours
+        # Private API keys: Model, Firmware, RossVersion, IsThreePhaseInverter, IsSmartBatteryInverter, IsSinglePhaseInverter, IsGridTieInverter, ProductDisplayname, InstalledPvSizeWatts, BatteryCapacityWattHours
+
         return self._inverterInfo
 
     async def getEnergyData(self):
@@ -116,12 +208,16 @@ class RedbackInverter:
 
         # energy data in the cloud data store is only refreshed by the Ouija device every 60s
         if datetime.now() > self._energyDataNextUpdate or self._energyData == None:
-            self._energyData = (await self._apiRequest("energyflowd2"))["Data"]["Input"]
             self._energyDataNextUpdate = datetime.now() + self._energyDataUpdateInterval
+            if self._apiPrivate:
+                self._energyData = (await self._apiRequest("energyflowd2"))["Data"]["Input"]
+            else:
+                self._energyData = (await self._apiRequest("public_DynamicData"))["Data"]
+                # TODO: might need to normalise this data
 
-        # keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
+        # Private API keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
+
         return self._energyData
-
 
 class TestRedbackInverter(RedbackInverter):
     """Test class for Redback Inverter integration, returns sample data without any API calls"""
@@ -159,6 +255,229 @@ class TestRedbackInverter(RedbackInverter):
                         "BatteryStatus": "Idle",
                         "BatterySoC0to100": 98.0,
                         "CtComms": True,
+                    }
+                }
+            }
+        elif endpoint == "public_BasicData":
+            return {
+                "Page": 0,
+                "PageSize": 100,
+                "PageCount": 1,
+                "TotalCount": 1,
+                "Data": [
+                    {
+                        "Id": "S1234123412341",
+                        "Nmi": None,
+                        "Type": "Site",
+                        "Nodes": [
+                            {
+                                "SerialNumber": "RB12341234123412",
+                                "Id": "RB12341234123412",
+                                "Nmi": None,
+                                "Type": "Inverter",
+                                "Nodes": None
+                            },
+                            {
+                                "Id": "Houseload",
+                                "Nmi": None,
+                                "Type": "Houseload",
+                                "Nodes": None
+                            }
+                        ]
+                    }
+                ]
+            }
+        elif endpoint == "public_StaticData":
+            return {
+                "Data": {
+                    "StaticData": {
+                        "TimestampUtc": "2022-12-12T06:04:02.0155057Z",
+                        "Location": {
+                            "Latitude": -27.123,
+                            "Longitude": 153.123,
+                            "AddressLineOne": "123 Sesame St",
+                            "AddressLineTwo": None,
+                            "Suburb": "Brisbane",
+                            "State": "Qld",
+                            "Country": "Australia ",
+                            "PostCode": "4000"
+                        },
+                        "TechnologyProvider": "ABC",
+                        "RemoteAccessConnection": {
+                            "Type": "ETHERNET",
+                            "CustomerChoice": True
+                        },
+                        "ApprovedCapacityW": None,
+                        "SolarRetailer": {
+                            "Name": "Retailer Name",
+                            "ABN": "81231231231"
+                        },
+                        "SiteDetails": {
+                            "GenerationHardLimitVA": None,
+                            "GenerationSoftLimitVA": None,
+                            "ExportHardLimitkW": None,
+                            "ExportHardLimitW": None,
+                            "ExportSoftLimitkW": None,
+                            "ExportSoftLimitW": None,
+                            "SiteExportLimitkW": None,
+                            "BatteryMaxChargePowerkW": 10,
+                            "BatteryMaxDischargePowerkW": 10,
+                            "BatteryCapacitykWh": 14.22,
+                            "UsableBatteryCapacitykWh": 12.798,
+                            "PanelModel": " ",
+                            "PanelSizekW": 9.96,
+                            "SystemType": "Hybrid",
+                            "InverterMaxExportPowerkW": 10,
+                            "InverterMaxImportPowerkW": 10
+                        },
+                        "CommissioningDate": "2022-08-18",
+                        "NMI": None,
+                        "LatestDynamicDataUtc": "2022-12-12T06:03:05Z",
+                        "Status": "OK",
+                        "Id": "S1234123412341",
+                        "Type": "Site",
+                        "DynamicDataMetadata": {
+                            "ActiveExportedPowerInstantaneouskWMetadata": {
+                                "Measured": True
+                            },
+                            "ActiveImportedPowerInstantaneouskWMetadata": {
+                                "Measured": True
+                            },
+                            "VoltageInstantaneousVMetadata": {
+                                "Measured": True
+                            },
+                            "CurrentInstantaneousAMetadata": {
+                                "Measured": True
+                            },
+                            "PowerFactorInstantaneousMinus1to1Metadata": {
+                                "Measured": True
+                            },
+                            "FrequencyInstantaneousHzMetadata": {
+                                "Measured": True
+                            },
+                            "BatterySoCInstantaneous0to1Metadata": {
+                                "Measured": False
+                            },
+                            "PvPowerInstantaneouskWMetadata": {
+                                "Measured": False
+                            },
+                            "InverterTemperatureCMetadata": {
+                                "Measured": True
+                            },
+                            "BatteryPowerNegativeIsChargingkWMetadata": {
+                                "Measured": False
+                            },
+                            "PvAllTimeEnergykWhMetadata": {
+                                "Measured": False
+                            },
+                            "ExportAllTimeEnergykWhMetadata": {
+                                "Measured": True
+                            },
+                            "ImportAllTimeEnergykWhMetadata": {
+                                "Measured": True
+                            },
+                            "LoadAllTimeEnergykWhMetadata": {
+                                "Measured": False
+                            }
+                        }
+                    },
+                    "Nodes": [
+                        {
+                            "StaticData": {
+                                "ModelName": "ST10000",
+                                "BatteryCount": 4,
+                                "SoftwareVersion": "2.16.32211.1",
+                                "FirmwareVersion": "080819",
+                                "BatteryModels": [
+                                    "RB600",
+                                    "Unknown",
+                                    "Unknown",
+                                    "Unknown"
+                                    ],
+                                "Id": "RB12341234123412",
+                                "Type": "Inverter",
+                                "DynamicDataMetadata": None
+                            },
+                            "Nodes": None
+                        },
+                        {
+                            "StaticData": {
+                                "Id": "HouseLoad",
+                                "Type": "Houseload",
+                                "DynamicDataMetadata": None
+                            },
+                            "Nodes": None
+                        }
+                    ]
+                }
+            }
+        elif endpoint == "public_DynamicData":
+            return {
+                "Data": {
+                    "TimestampUtc": "2022-12-12T06:08:05Z",
+                    "SiteId": "S1234123412341",
+                    "Phases": [
+                        {
+                            "Id": "A",
+                            "ActiveExportedPowerInstantaneouskW": 0.33,
+                            "ActiveImportedPowerInstantaneouskW": 0,
+                            "VoltageInstantaneousV": 233.1,
+                            "CurrentInstantaneousA": 1.42,
+                            "PowerFactorInstantaneousMinus1to1": 0.79
+                        },
+                        {
+                            "Id": "B",
+                            "ActiveExportedPowerInstantaneouskW": 0.347,
+                            "ActiveImportedPowerInstantaneouskW": 0,
+                            "VoltageInstantaneousV": 235.3,
+                            "CurrentInstantaneousA": 1.47,
+                            "PowerFactorInstantaneousMinus1to1": 0.785
+                        },
+                        {
+                            "Id": "C",
+                            "ActiveExportedPowerInstantaneouskW": 0.422,
+                            "ActiveImportedPowerInstantaneouskW": 0,
+                            "VoltageInstantaneousV": 236.1,
+                            "CurrentInstantaneousA": 1.79,
+                            "PowerFactorInstantaneousMinus1to1": 0.829
+                        }
+                    ],
+                    "FrequencyInstantaneousHz": 50.02,
+                    "BatterySoCInstantaneous0to1": 0.98,
+                    "PvPowerInstantaneouskW": 1.416,
+                    "InverterTemperatureC": 45.9,
+                    "BatteryPowerNegativeIsChargingkW": 0,
+                    "PvAllTimeEnergykWh": 5413.9,
+                    "ExportAllTimeEnergykWh": 2612.829,
+                    "ImportAllTimeEnergykWh": 175.108,
+                    "LoadAllTimeEnergykWh": 3157.7,
+                    "Status": "OK",
+                    "Inverters": [
+                        {
+                            "SerialNumber": "RB12341234123412",
+                            "PowerMode": {
+                                "InverterMode": "Auto",
+                                "PowerW": 0
+                            }
+                        }
+                    ]
+                },
+                "Metadata": {
+                    "Latest": "/Api/v2/EnergyData/S1234123412341/Dynamic?metadata=True",
+                    "Permalink": "/Api/v2/EnergyData/S1234123412341/Dynamic/At/20221212T060805Z?metadata=True",
+                    "Back": {
+                        "1m": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T060706Z/1?metadata=true",
+                        "10m": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T055806Z/2?metadata=true",
+                        "1h": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T050806Z/5?metadata=true",
+                        "1d": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221211T060806Z/60?metadata=true",
+                        "1w": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221205T060806Z/60?metadata=true"
+                    },
+                    "Forward": {
+                        "1m": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T060906Z/1?metadata=true",
+                        "10m": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T061806Z/2?metadata=true",
+                        "1h": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221212T070806Z/5?metadata=true",
+                        "1d": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221213T060806Z/60?metadata=true",
+                        "1w": "/Api/v2/EnergyData/S1234123412341/Dynamic/LatestBeforeUtc/20221219T060806Z/60?metadata=true"
                     }
                 }
             }
