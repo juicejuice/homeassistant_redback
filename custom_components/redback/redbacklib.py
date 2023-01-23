@@ -195,11 +195,25 @@ class RedbackInverter:
                 self._inverterInfo["BatteryCapacityWattHours"] = bannerInfo[
                     "BatteryCapacityWattHours"
                 ]
-            else:
-                self._inverterInfo = (await self._apiRequest("public_StaticData"))["Data"]
-                # TODO: might need to normalise this data
 
-        # Private API keys: Model, Firmware, RossVersion, IsThreePhaseInverter, IsSmartBatteryInverter, IsSinglePhaseInverter, IsGridTieInverter, ProductDisplayname, InstalledPvSizeWatts, BatteryCapacityWattHours
+                # Private API keys: Model, Firmware, RossVersion, IsThreePhaseInverter, IsSmartBatteryInverter, IsSinglePhaseInverter, IsGridTieInverter, ProductDisplayname, InstalledPvSizeWatts, BatteryCapacityWattHours
+
+            else:
+                dataPacket = (await self._apiRequest("public_StaticData"))["Data"]
+                staticData = dataPacket["StaticData"]
+                nodesData = dataPacket["Nodes"][0]["StaticData"] # assumes node 0 is the inverter, node 1 is usually house load
+                self._inverterInfo = staticData["SiteDetails"]
+                self._inverterInfo["RemoteAccessConnection.Type"] = staticData["RemoteAccessConnection"]["Type"]
+                self._inverterInfo["NMI"] = staticData["NMI"]
+                self._inverterInfo["CommissioningDate"] = staticData["CommissioningDate"]
+                self._inverterInfo["SiteId"] = staticData["Id"]
+                self._inverterInfo["ModelName"] = nodesData["ModelName"]
+                self._inverterInfo["BatteryCount"] = nodesData["BatteryCount"]
+                self._inverterInfo["SoftwareVersion"] = nodesData["SoftwareVersion"]
+                self._inverterInfo["FirmwareVersion"] = nodesData["FirmwareVersion"]
+                self._inverterInfo["SerialNumber"] = nodesData["Id"]
+
+                # Public API keys: BatteryMaxChargePowerkW, BatteryMaxDischargePowerkW, BatteryCapacitykWh, UsableBatteryCapacitykWh, PanelModel, PanelSizekW, SystemType, InverterMaxExportPowerkW, InverterMaxImportPowerkW, RemoteAccessConnection.Type, NMI, CommissioningDate, ModelName, BatteryCount, SoftwareVersion, FirmwareVersion, SerialNumber
 
         return self._inverterInfo
 
@@ -211,11 +225,20 @@ class RedbackInverter:
             self._energyDataNextUpdate = datetime.now() + self._energyDataUpdateInterval
             if self._apiPrivate:
                 self._energyData = (await self._apiRequest("energyflowd2"))["Data"]["Input"]
+
+                # Private API keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
+
             else:
                 self._energyData = (await self._apiRequest("public_DynamicData"))["Data"]
-                # TODO: might need to normalise this data
+                self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / len(self._energyData["Phases"]), 1)
+                self._energyData["ActiveExportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveExportedPowerInstantaneouskW"], self._energyData["Phases"])))
+                self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))
+                del self._energyData["TimestampUtc"]
+                del self._energyData["SiteId"]
+                del self._energyData["Inverters"]
+                del self._energyData["Phases"]
 
-        # Private API keys: ACLoadW, BackupLoadW, SupportsConnectedPV, PVW, ThirdPartyW, GridStatus, GridNegativeIsImportW, ConfiguredWithBatteries, BatteryNegativeIsChargingW, BatteryStatus, BatterySoC0to100, CtComms
+                # Public API keys: FrequencyInstantaneousHz, BatterySoCInstantaneous0to1, PvPowerInstantaneouskW, InverterTemperatureC, BatteryPowerNegativeIsChargingkW, PvAllTimeEnergykWh, ExportAllTimeEnergykWh, ImportAllTimeEnergykWh, LoadAllTimeEnergykWh, Status, VoltageInstantaneousV, ActiveExportedPowerInstantaneouskW, ActiveImportedPowerInstantaneouskW
 
         return self._energyData
 
