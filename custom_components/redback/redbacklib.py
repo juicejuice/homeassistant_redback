@@ -57,6 +57,9 @@ class RedbackInverter:
             self._OAuth2_client_id = auth_id.encode()
             self._OAuth2_client_secret = auth.encode()
 
+    def isPrivateAPI(self):
+        return self._apiPrivate
+
     async def _apiGetBearerToken(self):
         """Returns an active OAuth2 bearer token for use with public API methods"""
 
@@ -187,6 +190,8 @@ class RedbackInverter:
         if self._inverterInfo == None:
             if self._apiPrivate:
                 self._inverterInfo = await self._apiRequest("inverterinfo")
+                self._inverterInfo["ModelName"] = self._inverterInfo["Model"]
+                self._inverterInfo["FirmwareVersion"] = self._inverterInfo["Firmware"]
                 bannerInfo = await self._apiRequest("BannerInfo")
                 self._inverterInfo["ProductDisplayname"] = bannerInfo["ProductDisplayname"]
                 self._inverterInfo["InstalledPvSizeWatts"] = bannerInfo[
