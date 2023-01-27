@@ -30,10 +30,8 @@ The Redback Technologies data source is updated every minute by your inverter. T
 
 ## Private API
 
-I first developed this integration using what I call the "private API". This is the API used by the vendor's portal and mobile app. You can try this if you like but I guess Redback can change this upon a whim, whereas the public API is (presumably) properly maintained for downstream consumers.
+I first developed this integration using what I call the "private API". This is the RESTful API used by the vendor's portal and mobile app to obtain the solar and battery data for your system. You can try the private API if you like, but I guess Redback can change this upon a whim, whereas the public API is (presumably) properly maintained for downstream consumers.
 
-To try out the private API you will need to enter your serial number in the "Redback ID" field and the cookie in the "Redback Authentication" field. The value for that field should be in the form .AspNet.ApplicationCookie=XXX, where XXX is the big long cookie value obtained from Chrome Developer Tools, Application tab, after logging in to the vendor portal.
+To try out the private API you will need to enter your serial number in the "Redback ID" field and application cookie in the "Redback Authentication" field. The value for that field should be in the form .AspNet.ApplicationCookie=XXX, where XXX is the big long cookie value obtained from Chrome Developer Tools, Application tab, after logging in to the [vendor portal](https://portal.redbacktech.com/).
 
 Please also note, I haven't re-tested the private API since developing the public API method. Something may be broken or missing.
-
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
