@@ -133,7 +133,7 @@ async def async_setup_entry(
                 coordinator,
                 {
                     "name": "Battery Charge",
-                    "id_suffix": "battery_charge",
+                    "id_suffix": "battery_charge_total",
                     "data_source": "BatteryNegativeIsChargingW",
                     "direction": "negative",
                     "convertkW": True,
@@ -143,7 +143,7 @@ async def async_setup_entry(
                 coordinator,
                 {
                     "name": "Battery Discharge",
-                    "id_suffix": "battery_discharge",
+                    "id_suffix": "battery_discharge_total",
                     "data_source": "BatteryNegativeIsChargingW",
                     "direction": "positive",
                     "convertkW": True,
