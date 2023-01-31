@@ -6,11 +6,11 @@ Redback Technologies (https://redbacktech.com/) produces a range of inverter and
 
 ## Installation
 
-Install the repository through HACS by adding a custom repository or by manually copying the `custom_components/tesla_gateway` folder into your `custom_components` folder.
+Install the repository through HACS by adding a custom repository or by manually copying the `custom_components/redback` folder into your `custom_components` folder.
 
 ## Configuration
 
-The component is now configured through the user interface.
+The component is configured through the user interface.
 
 To setup the integration, got to Configuration -> Integrations, and search for Redback Technologies.
 
