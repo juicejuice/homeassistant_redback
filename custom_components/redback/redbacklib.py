@@ -10,6 +10,9 @@ from json.decoder import JSONDecodeError
 
 
 class RedbackError(Exception):
+    """Redback Inverter general HTTP error"""
+
+class RedbackConnectionError(Exception):
     """Redback Inverter connection error"""
 
 class RedbackAPIError(Exception):
@@ -73,7 +76,7 @@ class RedbackInverter:
             try:
                 response = await self._session.post(url=full_url, data=data, headers=headers) 
             except aiohttp.ClientConnectorError as e:
-                raise RedbackError(
+                raise RedbackConnectionError(
                     f"HTTP Connection Error. {e}"
                 ) from e
             except aiohttp.ClientResponseError as e:
@@ -134,22 +137,32 @@ class RedbackInverter:
                 # https://portal.redbacktech.com/api/v2/inverterinfo?SerialNumber=$SERIAL
                 full_url = self._apiBaseURL + endpoint + self._apiSerial
 
-        try:
-            response = await self._session.get(full_url, headers=request_headers) 
-        except aiohttp.ClientConnectorError as e:
-            raise RedbackError(
-                f"HTTP Connection Error. {e}"
-            ) from e
-        except aiohttp.ClientResponseError as e:
-            raise RedbackError(
-                f"HTTP Response Error. {e.code} {e.reason}"
-            ) from e
-        except HTTPError as e:
-            raise RedbackError(
-                f"HTTP Error. {e.code} {e.reason}"
-            ) from e
-        except URLError as e:
-            raise RedbackError(f"URL Error. {e.reason}") from e
+        # retry API request if connection error
+        retries = 3
+        for i in range(retries):
+            try:
+                response = await self._session.get(full_url, headers=request_headers) 
+
+            except aiohttp.ClientConnectorError as e:
+                # retry logic for error "Cannot connect to host api.redbacktech.com:443 ssl:default [Try again]"
+                if i < retries-1:
+                    continue
+                else:
+                    raise RedbackError(
+                        f"HTTP Connection Error. {e}"
+                    ) from e
+            except aiohttp.ClientResponseError as e:
+                raise RedbackError(
+                    f"HTTP Response Error. {e.code} {e.reason}"
+                ) from e
+            except HTTPError as e:
+                raise RedbackError(
+                    f"HTTP Error. {e.code} {e.reason}"
+                ) from e
+            except URLError as e:
+                raise RedbackError(f"URL Error. {e.reason}") from e
+
+            break
 
         # check for API error (e.g. expired credentials or invalid serial)
         if not response.ok:
