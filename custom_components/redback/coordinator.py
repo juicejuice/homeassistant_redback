@@ -45,9 +45,9 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
                 self.inverter_info = await self.redback.getInverterInfo()
             self.energy_data = await self.redback.getEnergyData()
         except RedbackError as err:
-            raise UpdateFailed("Connection error: {err}") from err
+            raise UpdateFailed(f"Connection error: {err}") from err
         except RedbackAPIError as err:
-            raise UpdateFailed("API error: {err}") from err
+            raise UpdateFailed(f"API error: {err}") from err
 
         return self.energy_data
 
