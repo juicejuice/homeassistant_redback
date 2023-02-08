@@ -76,8 +76,9 @@ class RedbackInverter:
             try:
                 response = await self._session.post(url=full_url, data=data, headers=headers) 
             except aiohttp.ClientConnectorError as e:
+                # TODO: does this need retry logic too?
                 raise RedbackConnectionError(
-                    f"HTTP Connection Error. {e}"
+                    f"HTTP OAuth2 Connection Error. {e}"
                 ) from e
             except aiohttp.ClientResponseError as e:
                 raise RedbackError(
@@ -148,7 +149,7 @@ class RedbackInverter:
                 if i < retries-1:
                     continue
                 else:
-                    raise RedbackError(
+                    raise RedbackConnectionError(
                         f"HTTP Connection Error. {e}"
                     ) from e
             except aiohttp.ClientResponseError as e:
