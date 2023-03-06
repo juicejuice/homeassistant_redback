@@ -6,11 +6,11 @@ Redback Technologies (https://redbacktech.com/) produces a range of inverter and
 
 ## Installation
 
-Install the repository through HACS by adding a custom repository or by manually copying the `custom_components/redback` folder into your `custom_components` folder.
+Install the repository through HACS (it should appear in the list of available integrations) or by manually copying the `custom_components/redback` folder into your `custom_components` folder.
 
 ## Configuration
 
-The component is configured through the user interface.
+Once you have installed the component, it should be available for configuration through the user interface.
 
 To setup the integration, got to Configuration -> Integrations, and search for Redback Technologies.
 
@@ -25,6 +25,7 @@ The Redback Technologies data source is updated every minute by your inverter. T
 ## Notes
 
 - This was developed for the ST10000 Smart Hybrid (three phase) inverter with integrated battery
+- This has also been tested for the SH5000 Smart Hybrid (single phase) inverter with integrated battery (thanks to "pcal" from HA Community forums)
 - If you have a different model I would be interested to adapt the code to suit, but would need some data packets from your system
 - I have provided sufficient sensor entities to drive the "Energy" dashboard on HA, you just need to configure your dashboard with the relevant "Total" sensors
 
@@ -34,4 +35,4 @@ I first developed this integration using what I call the "private API". This is 
 
 To try out the private API you will need to enter your serial number in the "Redback ID" field and application cookie in the "Redback Authentication" field. The value for that field should be in the form .AspNet.ApplicationCookie=XXX, where XXX is the big long cookie value obtained from Chrome Developer Tools, Application tab, after logging in to the [vendor portal](https://portal.redbacktech.com/).
 
-Please also note, I haven't re-tested the private API since developing the public API method. Something may be broken or missing.
+Please also note, I haven't re-tested the private API since developing the public API method. Something may be broken or missing. Also, the private API auth token will probably expire and you would need to manually refresh it in the integration's config files (I haven't added a UI for refreshing private API token).
