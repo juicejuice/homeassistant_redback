@@ -9,7 +9,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 # from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
-from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError
+from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError, RedbackConnectionError
 
 
 class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
