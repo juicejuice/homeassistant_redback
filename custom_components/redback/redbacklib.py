@@ -72,31 +72,39 @@ class RedbackInverter:
             data = b'client_id=' + self._OAuth2_client_id + b'&client_secret=' + self._OAuth2_client_secret
             headers = { "Content-Type": "application/x-www-form-urlencoded" }
 
-            # make HTTP POST request
-            try:
-                response = await self._session.post(url=full_url, data=data, headers=headers) 
-            except aiohttp.ClientConnectorError as e:
-                # TODO: does this need retry logic too?
-                raise RedbackConnectionError(
-                    f"HTTP OAuth2 Connection Error. {e}"
-                ) from e
-            except aiohttp.ClientResponseError as e:
-                raise RedbackError(
-                    f"HTTP Response Error. {e.code} {e.reason}"
-                ) from e
-            except HTTPError as e:
-                # 400 Bad Request = client_id not found
-                # 401 Unauthorized = client_secret incorrect
-                # 404 Not Found = bad endpoint
-                # e.read().decode() returns Unicode string JSON, the "error" key defines the error type (https://www.oauth.com/oauth2-servers/access-tokens/access-token-response/)
-                raise RedbackError(
-                    f"HTTP Error. {e.code} {e.reason}"
-                ) from e
-            except URLError as e:
-                # If we get here, the URL is wrong or down
-                raise RedbackError(
-                    f"URL Error. {e.reason}"
-                ) from e
+            # retry API request if connection error
+            retries = 3
+            for i in range(retries):
+                try:
+                    response = await self._session.post(url=full_url, data=data, headers=headers) 
+
+                except aiohttp.ClientConnectorError as e:
+                    # retry logic for error "Cannot connect to host api.redbacktech.com:443 ssl:default [Try again]"
+                    if i < retries-1:
+                        continue
+                    else:
+                        raise RedbackConnectionError(
+                            f"HTTP OAuth2 Connection Error. {e}"
+                        ) from e
+                except aiohttp.ClientResponseError as e:
+                    raise RedbackError(
+                        f"HTTP Response Error. {e.code} {e.reason}"
+                    ) from e
+                except HTTPError as e:
+                    # 400 Bad Request = client_id not found
+                    # 401 Unauthorized = client_secret incorrect
+                    # 404 Not Found = bad endpoint
+                    # e.read().decode() returns Unicode string JSON, the "error" key defines the error type (https://www.oauth.com/oauth2-servers/access-tokens/access-token-response/)
+                    raise RedbackError(
+                        f"HTTP Error. {e.code} {e.reason}"
+                    ) from e
+                except URLError as e:
+                    # If we get here, the URL is wrong or down
+                    raise RedbackError(
+                        f"URL Error. {e.reason}"
+                    ) from e
+
+                break
 
             # collect data packet
             try:
