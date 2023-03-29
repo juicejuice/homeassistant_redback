@@ -63,6 +63,12 @@ class RedbackInverter:
     def isPrivateAPI(self):
         return self._apiPrivate
 
+    async def hasBattery(self):
+        # Note: private API doesn't have "BatteryCount", need examples without
+        # battery so the hasBattery() method can be updated to suit
+        inverter_info = await self.getInverterInfo()
+        return inverter_info.get("BatteryCount", 0) > 0
+
     async def _apiGetBearerToken(self):
         """Returns an active OAuth2 bearer token for use with public API methods"""
 

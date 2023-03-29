@@ -42,8 +42,11 @@ async def async_setup_entry(
 
     coordinator = hass.data[DOMAIN][entry.entry_id]
     privateAPI = coordinator.redback.isPrivateAPI()
+    hasBattery = await coordinator.redback.hasBattery()
 
     # Private API has different entities
+    # Note: private API always creates battery entities, need examples without
+    # battery so the hasBattery() method can be updated to suit
     if privateAPI:
         entities = [
             RedbackChargeSensor(
@@ -174,15 +177,6 @@ async def async_setup_entry(
     # Public API has different entities
     else:
         entities = [
-            RedbackChargeSensor(
-                coordinator,
-                {
-                    "name": "Battery SoC",
-                    "id_suffix": "battery_soc",
-                    "data_source": "BatterySoCInstantaneous0to1",
-                    "convertPercent": True,
-                },
-            ),
             RedbackVoltageSensor(
                 coordinator,
                 {
@@ -263,43 +257,55 @@ async def async_setup_entry(
                     "data_source": "PvPowerInstantaneouskW",
                 },
             ),
-            RedbackPowerSensor(
-                coordinator,
-                {
-                    "name": "Battery Discharge",
-                    "id_suffix": "battery_discharge",
-                    "data_source": "BatteryPowerNegativeIsChargingkW",
-                    "direction": "positive",
-                },
-            ),
-            RedbackPowerSensor(
-                coordinator,
-                {
-                    "name": "Battery Charge",
-                    "id_suffix": "battery_charge",
-                    "data_source": "BatteryPowerNegativeIsChargingkW",
-                    "direction": "negative",
-                },
-            ),
-            RedbackEnergySensor(
-                coordinator,
-                {
-                    "name": "Battery Discharge Total",
-                    "id_suffix": "battery_discharge_total",
-                    "data_source": "BatteryPowerNegativeIsChargingkW",
-                    "direction": "positive",
-                },
-            ),
-            RedbackEnergySensor(
-                coordinator,
-                {
-                    "name": "Battery Charge Total",
-                    "id_suffix": "battery_charge_total",
-                    "data_source": "BatteryPowerNegativeIsChargingkW",
-                    "direction": "negative",
-                },
-            ),
         ]
+        if hasBattery:
+            entities.extend([
+                RedbackChargeSensor(
+                    coordinator,
+                    {
+                        "name": "Battery SoC",
+                        "id_suffix": "battery_soc",
+                        "data_source": "BatterySoCInstantaneous0to1",
+                        "convertPercent": True,
+                    },
+                ),
+                RedbackPowerSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Discharge",
+                        "id_suffix": "battery_discharge",
+                        "data_source": "BatteryPowerNegativeIsChargingkW",
+                        "direction": "positive",
+                    },
+                ),
+                RedbackPowerSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Charge",
+                        "id_suffix": "battery_charge",
+                        "data_source": "BatteryPowerNegativeIsChargingkW",
+                        "direction": "negative",
+                    },
+                ),
+                RedbackEnergySensor(
+                    coordinator,
+                    {
+                        "name": "Battery Discharge Total",
+                        "id_suffix": "battery_discharge_total",
+                        "data_source": "BatteryPowerNegativeIsChargingkW",
+                        "direction": "positive",
+                    },
+                ),
+                RedbackEnergySensor(
+                    coordinator,
+                    {
+                        "name": "Battery Charge Total",
+                        "id_suffix": "battery_charge_total",
+                        "data_source": "BatteryPowerNegativeIsChargingkW",
+                        "direction": "negative",
+                    },
+                ),
+            ])
 
     async_add_entities(entities)
 
