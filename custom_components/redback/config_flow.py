@@ -12,20 +12,22 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import LOGGER, DOMAIN, API_METHODS, TEST_MODE
-from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError
+from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError, RedbackConnectionError
 
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Optional("displayname", default="Redback"): str,
-        vol.Required("apimethod", default=API_METHODS[0]): vol.In(API_METHODS),
+        #vol.Required("apimethod", default=API_METHODS[0]): vol.In(API_METHODS),
         vol.Required("client_id"): str,
         vol.Required("auth"): str,
+        vol.Required("site_index", default="First"): vol.In(["First", "Second", "Third", "Fourth", "Fifth", "Sixth"]),
     }
 )
 
 # Notes:
 # 1. for "private" API method, client_id = Redback serial number, auth = authentication cookie
 # 2. for "public" API method, client_id = Redback client ID, auth = authentication credential/secret
+# *** disabled private API method for now ***
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect.
@@ -38,11 +40,11 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # RedbackInverter is the API connection to the Redback cloud portal
     if TEST_MODE:
         redback = TestRedbackInverter(
-            auth=data["auth"], auth_id=data["client_id"], apimethod=data["apimethod"], session=clientsession
+            auth=data["auth"], auth_id=data["client_id"], apimethod=data.get("apimethod","public"), session=clientsession, site_index=data["site_index"]
         )
     else:
         redback = RedbackInverter(
-            auth=data["auth"], auth_id=data["client_id"], apimethod=data["apimethod"], session=clientsession
+            auth=data["auth"], auth_id=data["client_id"], apimethod=data.get("apimethod","public"), session=clientsession, site_index=data["site_index"]
         )
 
     try:
@@ -51,7 +53,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     except RedbackAPIError as e:
         LOGGER.debug(f"Validation error: {e}")
         raise InvalidAuth from e
-    except RedbackError as e:
+    except (RedbackError, RedbackConnectionError) as e:
         LOGGER.debug(f"Connection error: {e}")
         raise CannotConnect from e
 

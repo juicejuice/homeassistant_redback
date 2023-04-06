@@ -17,7 +17,8 @@
                     "displayname": "Friendly name for device",
                     "apimethod": "API Method",
                     "client_id": "Redback ID",
-                    "auth": "Redback Authentication"
+                    "auth": "Redback Authentication",
+                    "site_index": "Redback Site (for multiple inverters)"
                 }
             }
         }

@@ -24,6 +24,7 @@ class RedbackInverter:
 
     serial = None
     siteId = None
+    siteIndex = 1
     _apiPrivate = True
     _apiBaseURL = ""
     _apiCookie = ""
@@ -41,11 +42,27 @@ class RedbackInverter:
         "public_StaticData": "EnergyData/{self.siteId}/Static",
         "public_DynamicData": "EnergyData/{self.siteId}/Dynamic?metadata=true"
     }
+    _ordinalMap = {
+        "first": 1,
+        "second": 2,
+        "third": 3,
+        "fourth": 4,
+        "fifth": 5,
+        "sixth": 6,
+        "seventh": 7,
+        "eighth": 8,
+        "ninth": 9,
+        "tenth": 10,
+    }
 
-    def __init__(self, auth_id, auth, apimethod, session):
+    def __init__(self, auth_id, auth, apimethod, session, site_index=1):
         """Constructor: needs API details (public = OAuth2 client_id and secret, private = auth cookie and inverter serial number)"""
         self._session = session
         self._apiPrivate = (apimethod == 'private') # Public API vs Private API
+        if type(site_index) is str:
+            self.siteIndex = self._ordinalMap.get(site_index.lower(), 1)
+        elif type(site_index) is int:
+            self.siteIndex = site_index
 
         # Private API
         if self._apiPrivate:
@@ -206,11 +223,16 @@ class RedbackInverter:
 
     async def getSiteId(self):
         """Returns site ID via public API"""
+        index = 0
+        siteId = None
         data = await self._apiRequest("public_BasicData")
         for item in data["Data"]:
             if item["Type"] == "Site":
-                return item["Id"]
-        return None
+                siteId = item["Id"]
+                index += 1
+                if index >= self.siteIndex: break
+        # return the site ID at desired index, or failing that return the last site ID found
+        return siteId
 
     async def getInverterInfo(self):
         """Returns inverter info (static data, updated first use only)"""
