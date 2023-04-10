@@ -57,13 +57,17 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         LOGGER.debug(f"Connection error: {e}")
         raise CannotConnect from e
 
-    # Return info that you want to store in the config entry.
-    # TODO: change client_id out for something meaningful like serial number (can that be from the testConnection?
-    display_name = f"Inverter {data['client_id']}"
+    # Store Redback site ID
+    site_id = await redback.getSiteId()
+    data["site_id"] = site_id
+
+    # Return display name
+    display_name = f"Inverter {data['site_id']}"
     if "displayname" in data and data["displayname"] != "":
         display_name = data["displayname"]
     else:
-        data["displayname"] = data["client_id"]
+        data["displayname"] = display_name
+
     return {"title": display_name}
 
 

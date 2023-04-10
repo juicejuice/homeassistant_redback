@@ -16,14 +16,13 @@ class RedbackEntity(CoordinatorEntity[RedbackDataUpdateCoordinator]):
 
     def __init__(self, coordinator: RedbackDataUpdateCoordinator, details) -> None:
         # initialise the entity
-        client_id = coordinator.config_entry.data["client_id"]
+        site_id = coordinator.config_entry.data["site_id"]
         self.coordinator = coordinator
         assert self.coordinator is not None
         super().__init__(coordinator)
 
         # store the base for the unique_id, to be used by each entity
-        # TODO: for Public API, need to pull the serial number from somewhere instead of client_id
-        self.base_unique_id = client_id
+        self.base_unique_id = site_id
 
         # some entities need these extra details
         if details:
@@ -36,7 +35,7 @@ class RedbackEntity(CoordinatorEntity[RedbackDataUpdateCoordinator]):
 
         # link to the base Redback device
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, client_id)},
+            identifiers={(DOMAIN, site_id)},
             manufacturer="Redback Technologies",
             model=coordinator.inverter_info["ModelName"],
             name=coordinator.config_entry.data["displayname"],
