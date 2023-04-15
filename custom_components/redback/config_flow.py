@@ -74,7 +74,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
 class RedbackConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for redback."""
 
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -89,6 +89,8 @@ class RedbackConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             info = await validate_input(self.hass, user_input)
+            await self.async_set_unique_id(user_input["site_id"])
+            self._abort_if_unique_id_configured()
         except CannotConnect:
             errors["base"] = "cannot_connect"
         except InvalidAuth:

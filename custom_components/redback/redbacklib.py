@@ -223,6 +223,9 @@ class RedbackInverter:
 
     async def getSiteId(self):
         """Returns site ID via public API"""
+        if self.siteId is not None:
+            return self.siteId
+
         index = 0
         siteId = None
         data = await self._apiRequest("public_BasicData")
