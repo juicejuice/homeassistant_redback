@@ -288,6 +288,11 @@ class RedbackInverter:
 
             else:
                 self._energyData = (await self._apiRequest("public_DynamicData"))["Data"]
+                # gather individual voltage and current per phase
+                for phase in self._energyData["Phases"]:
+                    self._energyData["VoltageInstantaneousV_" + phase["Id"]] = phase["VoltageInstantaneousV"]
+                    self._energyData["CurrentInstantaneousA_" + phase["Id"]] = phase["CurrentInstantaneousA"]
+                # store averaged values too
                 self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / len(self._energyData["Phases"]), 1)
                 self._energyData["ActiveExportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveExportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))

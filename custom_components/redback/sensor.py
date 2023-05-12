@@ -8,6 +8,8 @@ from homeassistant.core import (
 )
 from homeassistant.config_entries import ConfigEntry
 
+import re
+
 # from homeassistant.exceptions import ConfigEntryAuthFailed
 # from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -180,6 +182,30 @@ async def async_setup_entry(
             RedbackVoltageSensor(
                 coordinator,
                 {
+                    "name": "Grid Voltage A",
+                    "id_suffix": "grid_v_a",
+                    "data_source": "VoltageInstantaneousV_A",
+                },
+            ),
+            RedbackVoltageSensor(
+                coordinator,
+                {
+                    "name": "Grid Voltage B",
+                    "id_suffix": "grid_v_b",
+                    "data_source": "VoltageInstantaneousV_B",
+                },
+            ),
+            RedbackVoltageSensor(
+                coordinator,
+                {
+                    "name": "Grid Voltage C",
+                    "id_suffix": "grid_v_c",
+                    "data_source": "VoltageInstantaneousV_C",
+                },
+            ),
+            RedbackVoltageSensor(
+                coordinator,
+                {
                     "name": "Grid Voltage",
                     "id_suffix": "grid_v",
                     "data_source": "VoltageInstantaneousV",
@@ -212,7 +238,7 @@ async def async_setup_entry(
             RedbackEnergyMeter(
                 coordinator,
                 {
-                    "name": "Load Total",
+                    "name": "Site Load Total",
                     "id_suffix": "load_total",
                     "data_source": "LoadAllTimeEnergykWh",
                 },
@@ -255,6 +281,14 @@ async def async_setup_entry(
                     "name": "Solar Generation",
                     "id_suffix": "pv_power",
                     "data_source": "PvPowerInstantaneouskW",
+                },
+            ),
+            RedbackPowerSensor(
+                coordinator,
+                {
+                    "name": "Site Load",
+                    "id_suffix": "load_power",
+                    "data_source": "$calc$ float(ed['PvPowerInstantaneouskW']) + float(ed['BatteryPowerNegativeIsChargingkW']) - float(ed['ActiveExportedPowerInstantaneouskW']) + float(ed['ActiveImportedPowerInstantaneouskW'])",
                 },
             ),
         ]
@@ -388,7 +422,7 @@ class RedbackVoltageSensor(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self._attr_native_value = self.coordinator.energy_data.get(self.data_source, 0)
         self.async_write_ha_state()
 
 class RedbackPowerSensor(RedbackEntity, SensorEntity):
@@ -408,10 +442,21 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        measurement = self.coordinator.energy_data[self.data_source]
-        if(self.direction == "positive"):
+
+        measurement = 0
+        # dynamically calculated power measurement
+        if self.data_source.startswith('$calc$'):
+            measurement = re.sub('^\$calc\$\s*', '', self.data_source)
+            ed = self.coordinator.energy_data
+            measurement = float(eval(measurement, {'ed':ed}))
+
+        # direct power measurement
+        else:
+            measurement = self.coordinator.energy_data[self.data_source]
+
+        if (self.direction == "positive"):
             measurement = max(measurement, 0)
-        elif(self.direction == "negative"):
+        elif (self.direction == "negative"):
             measurement = 0 - min(measurement, 0)
         self._attr_native_value = measurement
         if self.convertkW: self._attr_native_value /= 1000 # convert from W to kW
