@@ -529,7 +529,7 @@ class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
     """Sensor for energy storage"""
 
     _attr_name = "Energy Storage"
-    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     # this class not availabe until 2023.4 # _attr_device_class = SensorDeviceClass.ENERGY_STORAGE 
     _attr_device_class = SensorDeviceClass.ENERGY
