@@ -37,6 +37,8 @@ class RedbackInverter:
     _energyData = None
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
+    _inverterInfoUpdateInterval = timedelta(minutes=60)
+    _inverterInfoNextUpdate = datetime.now()
     _apiPublicRequestMap = {
         "public_BasicData": "EnergyData/With/Nodes",
         "public_StaticData": "EnergyData/{self.siteId}/Static",
@@ -240,7 +242,10 @@ class RedbackInverter:
     async def getInverterInfo(self):
         """Returns inverter info (static data, updated first use only)"""
 
-        if self._inverterInfo == None:
+        # we rate-limit the inverter info updates, it is meant to be static data but some values do change
+        if datetime.now() > self._inverterInfoNextUpdate or self._inverterInfo == None:
+            self._inverterInfoNextUpdate = datetime.now() + self._inverterInfoUpdateInterval
+
             if self._apiPrivate:
                 self._inverterInfo = await self._apiRequest("inverterinfo")
                 self._inverterInfo["ModelName"] = self._inverterInfo["Model"]
@@ -267,11 +272,12 @@ class RedbackInverter:
                 self._inverterInfo["SiteId"] = staticData["Id"]
                 self._inverterInfo["ModelName"] = nodesData["ModelName"]
                 self._inverterInfo["BatteryCount"] = nodesData["BatteryCount"]
+                self._inverterInfo["BatteryModels"] = ','.join(nodesData["BatteryModels"])
                 self._inverterInfo["SoftwareVersion"] = nodesData["SoftwareVersion"]
                 self._inverterInfo["FirmwareVersion"] = nodesData["FirmwareVersion"]
                 self._inverterInfo["SerialNumber"] = nodesData["Id"]
 
-                # Public API keys: BatteryMaxChargePowerkW, BatteryMaxDischargePowerkW, BatteryCapacitykWh, UsableBatteryCapacitykWh, PanelModel, PanelSizekW, SystemType, InverterMaxExportPowerkW, InverterMaxImportPowerkW, RemoteAccessConnection.Type, NMI, CommissioningDate, ModelName, BatteryCount, SoftwareVersion, FirmwareVersion, SerialNumber
+                # Public API keys: BatteryMaxChargePowerkW, BatteryMaxDischargePowerkW, BatteryCapacitykWh, UsableBatteryCapacitykWh, BatteryModels, PanelModel, PanelSizekW, SystemType, InverterMaxExportPowerkW, InverterMaxImportPowerkW, RemoteAccessConnection.Type, NMI, CommissioningDate, ModelName, BatteryCount, SoftwareVersion, FirmwareVersion, SerialNumber
 
         return self._inverterInfo
 

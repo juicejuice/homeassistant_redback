@@ -339,6 +339,22 @@ async def async_setup_entry(
                         "direction": "negative",
                     },
                 ),
+                RedbackEnergyStorageSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Capacity",
+                        "id_suffix": "battery_capacity",
+                        "data_source": "BatteryCapacitykWh",
+                    },
+                ),
+                RedbackEnergyStorageSensor(
+                    coordinator,
+                    {
+                        "name": "Usable Battery Capacity",
+                        "id_suffix": "battery_usable_capacity",
+                        "data_source": "UsableBatteryCapacitykWh",
+                    },
+                ),
             ])
 
     async_add_entities(entities)
@@ -508,3 +524,26 @@ class RedbackEnergyMeter(RedbackEntity, SensorEntity):
         LOGGER.debug("Updating entity: %s", self.unique_id)
         self._attr_native_value = self.coordinator.energy_data[self.data_source]
         self.async_write_ha_state()
+
+class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
+    """Sensor for energy storage"""
+
+    _attr_name = "Energy Storage"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    # this class not availabe until 2023.4 # _attr_device_class = SensorDeviceClass.ENERGY_STORAGE 
+    _attr_device_class = SensorDeviceClass.ENERGY
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        # note: this sensor type always draws from inverter_info, not energy_data
+        self._attr_native_value = self.coordinator.inverter_info[self.data_source]
+        self.async_write_ha_state()
+

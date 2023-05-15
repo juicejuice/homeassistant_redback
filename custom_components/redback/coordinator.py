@@ -41,8 +41,8 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
         )
 
         try:
-            if (not hasattr(self, "inverter_info")):
-                self.inverter_info = await self.redback.getInverterInfo()
+            # the Redback integration has built-in timers to rate-limit the data updates and not hammer the API
+            self.inverter_info = await self.redback.getInverterInfo()
             self.energy_data = await self.redback.getEnergyData()
         except RedbackError as err:
             raise UpdateFailed(f"HTTP error: {err}") from err
