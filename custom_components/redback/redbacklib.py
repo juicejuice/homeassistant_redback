@@ -37,7 +37,7 @@ class RedbackInverter:
     _energyData = None
     _energyDataUpdateInterval = timedelta(minutes=1)
     _energyDataNextUpdate = datetime.now()
-    _inverterInfoUpdateInterval = timedelta(minutes=60)
+    _inverterInfoUpdateInterval = timedelta(minutes=15)
     _inverterInfoNextUpdate = datetime.now()
     _apiPublicRequestMap = {
         "public_BasicData": "EnergyData/With/Nodes",
