@@ -2,6 +2,7 @@
 
 import aiohttp
 import asyncio
+from math import sqrt
 from datetime import datetime, timedelta
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
@@ -298,8 +299,9 @@ class RedbackInverter:
                 for phase in self._energyData["Phases"]:
                     self._energyData["VoltageInstantaneousV_" + phase["Id"]] = phase["VoltageInstantaneousV"]
                     self._energyData["CurrentInstantaneousA_" + phase["Id"]] = phase["CurrentInstantaneousA"]
-                # store averaged values too
-                self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / len(self._energyData["Phases"]), 1)
+                # store an average value too (by calculating total available voltage for three-phase)
+                phaseCount = len(self._energyData["Phases"])
+                self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / phaseCount * sqrt(phaseCount), 1)
                 self._energyData["ActiveExportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveExportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 del self._energyData["TimestampUtc"]
