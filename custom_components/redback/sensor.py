@@ -350,7 +350,15 @@ async def async_setup_entry(
                 RedbackEnergyStorageSensor(
                     coordinator,
                     {
-                        "name": "Usable Battery Capacity",
+                        "name": "Battery Usable Remaining",
+                        "id_suffix": "battery_capacity",
+                        "data_source": "$calc$ float(ed['UsableBatteryCapacitykWh']) * float(ed['BatterySoCInstantaneous0to1])",
+                    },
+                ),
+                RedbackEnergyStorageSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Capacity Usable", #renamed for consistency and group with other battery sensors
                         "id_suffix": "battery_usable_capacity",
                         "data_source": "UsableBatteryCapacitykWh",
                     },
