@@ -22,6 +22,7 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfFrequency,
     UnitOfTemperature,
+    UnitOfElectricCurrent,
     PERCENTAGE,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -187,12 +188,28 @@ async def async_setup_entry(
                     "data_source": "VoltageInstantaneousV_A",
                 },
             ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current A",
+                    "id_suffix": "grid_a_a",
+                    "data_source": "CurrentInstantaneousA_A",
+                },
+            ),
             RedbackVoltageSensor(
                 coordinator,
                 {
                     "name": "Grid Voltage B",
                     "id_suffix": "grid_v_b",
                     "data_source": "VoltageInstantaneousV_B",
+                },
+            ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current B",
+                    "id_suffix": "grid_a_b",
+                    "data_source": "CurrentInstantaneousA_B",
                 },
             ),
             RedbackVoltageSensor(
@@ -203,12 +220,28 @@ async def async_setup_entry(
                     "data_source": "VoltageInstantaneousV_C",
                 },
             ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current C",
+                    "id_suffix": "grid_a_c",
+                    "data_source": "CurrentInstantaneousA_C",
+                },
+            ),
             RedbackVoltageSensor(
                 coordinator,
                 {
                     "name": "Grid Voltage",
                     "id_suffix": "grid_v",
                     "data_source": "VoltageInstantaneousV",
+                },
+            ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current Net",
+                    "id_suffix": "grid_a_net",
+                    "data_source": "CurrentInstantaneousA",
                 },
             ),
             RedbackTempSensor(
@@ -273,6 +306,14 @@ async def async_setup_entry(
                     "name": "Grid Import",
                     "id_suffix": "grid_import",
                     "data_source": "ActiveImportedPowerInstantaneouskW",
+                },
+            ),
+            RedbackPowerSensor(
+                coordinator,
+                {
+                    "name": "Grid Net",
+                    "id_suffix": "grid_net",
+                    "data_source": "ActiveNetPowerInstantaneouskW",
                 },
             ),
             RedbackPowerSensor(
@@ -350,16 +391,8 @@ async def async_setup_entry(
                 RedbackEnergyStorageSensor(
                     coordinator,
                     {
-                        "name": "Battery Usable Remaining",
-                        "id_suffix": "battery_capacity",
-                        "data_source": "$calc$ float(ed['UsableBatteryCapacitykWh']) * float(ed['BatterySoCInstantaneous0to1])",
-                    },
-                ),
-                RedbackEnergyStorageSensor(
-                    coordinator,
-                    {
-                        "name": "Battery Capacity Usable", #renamed for consistency and group with other battery sensors
-                        "id_suffix": "battery_usable_capacity",
+                        "name": "Battery Capacity Usable",
+                        "id_suffix": "battery_capacity_usable",
                         "data_source": "UsableBatteryCapacitykWh",
                     },
                 ),
@@ -493,6 +526,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
+    _suggested_display_precision = 3
 
     @property
     def unique_id(self) -> str:
@@ -537,10 +571,10 @@ class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
     """Sensor for energy storage"""
 
     _attr_name = "Energy Storage"
-    _attr_state_class = SensorStateClass.TOTAL
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
-    # this class not availabe until 2023.4 # _attr_device_class = SensorDeviceClass.ENERGY_STORAGE 
-    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_device_class = SensorDeviceClass.ENERGY_STORAGE 
+    _attr_icon = "mdi:home-battery"
 
     @property
     def unique_id(self) -> str:
@@ -555,3 +589,23 @@ class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
         self._attr_native_value = self.coordinator.inverter_info[self.data_source]
         self.async_write_ha_state()
 
+class RedbackCurrentSensor(RedbackEntity, SensorEntity):
+    """Sensor for Current"""
+
+    _attr_name = "Current"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+    _attr_device_class = SensorDeviceClass.CURRENT
+    _suggested_display_precision = 3
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self.async_write_ha_state()
