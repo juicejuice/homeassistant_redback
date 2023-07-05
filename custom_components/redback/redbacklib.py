@@ -299,16 +299,19 @@ class RedbackInverter:
                 for phase in self._energyData["Phases"]:
                     self._energyData["VoltageInstantaneousV_" + phase["Id"]] = phase["VoltageInstantaneousV"]
                     self._energyData["CurrentInstantaneousA_" + phase["Id"]] = phase["CurrentInstantaneousA"]
+                    self._energyData["PowerFactorInstantaneousMinus1to1_" + phase["Id"]] = phase["PowerFactorInstantaneousMinus1to1"]
                 # store an average value too (by calculating total available voltage for three-phase)
                 phaseCount = len(self._energyData["Phases"])
                 self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / phaseCount * sqrt(phaseCount), 1)
                 self._energyData["ActiveExportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveExportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))
+                self._energyData["ActiveNetPowerInstantaneouskW"] = self._energyData["ActiveExportedPowerInstantaneouskW"] - self._energyData["ActiveImportedPowerInstantaneouskW"]
+                self._energyData["CurrentInstantaneousA"] = sum(list(map(lambda x: x["CurrentInstantaneousA"], self._energyData["Phases"])))
                 del self._energyData["TimestampUtc"]
                 del self._energyData["SiteId"]
                 del self._energyData["Inverters"]
                 del self._energyData["Phases"]
-
+                
                 # Public API keys: FrequencyInstantaneousHz, BatterySoCInstantaneous0to1, PvPowerInstantaneouskW, InverterTemperatureC, BatteryPowerNegativeIsChargingkW, PvAllTimeEnergykWh, ExportAllTimeEnergykWh, ImportAllTimeEnergykWh, LoadAllTimeEnergykWh, Status, VoltageInstantaneousV, ActiveExportedPowerInstantaneouskW, ActiveImportedPowerInstantaneouskW
 
         return self._energyData
