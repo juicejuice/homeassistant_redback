@@ -1,44 +1,55 @@
-"""Redback entity base class for the Redback integration."""
+"""DataUpdateCoordinator for the Redback integration."""
 from __future__ import annotations
 
-from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN
-from .coordinator import RedbackDataUpdateCoordinator
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+# from homeassistant.exceptions import ConfigEntryAuthFailed
+
+from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
+from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError, RedbackConnectionError
 
 
-class RedbackEntity(CoordinatorEntity[RedbackDataUpdateCoordinator]):
-    """Base class for Redback entities"""
+class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
+    """The Redback Data Update Coordinator."""
 
-    coordinator: RedbackDataUpdateCoordinator
-    _attr_has_entity_name = True
+    config_entry: ConfigEntry
 
-    def __init__(self, coordinator: RedbackDataUpdateCoordinator, details) -> None:
-        # initialise the entity
-        site_id = coordinator.config_entry.data["site_id"]
-        self.coordinator = coordinator
-        assert self.coordinator is not None
-        super().__init__(coordinator)
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Initialize the Redback coordinator."""
+        self.config_entry = entry
+        clientsession = async_get_clientsession(hass)
 
-        # store the base for the unique_id, to be used by each entity
-        self.base_unique_id = site_id
+        # RedbackInverter is the API connection to the Redback cloud portal
+        if TEST_MODE:
+            self.redback = TestRedbackInverter(
+                auth=entry.data["auth"], auth_id=entry.data["client_id"], apimethod=entry.data.get("apimethod","public"), session=clientsession, site_index=entry.data["site_index"]
+            )
+        else:
+            self.redback = RedbackInverter(
+                auth=entry.data["auth"], auth_id=entry.data["client_id"], apimethod=entry.data.get("apimethod","public"), session=clientsession, site_index=entry.data["site_index"]
+            )
 
-        # some entities need these extra details
-        if details:
-            self._attr_name = details["name"]
-            self.id_suffix = details["id_suffix"]
-            self.data_source = details.get("data_source")
-            self.direction = details.get("direction")
-            self.convertPercent = details.get("convertPercent")
-            self.convertkW = details.get("convertkW")
+        super().__init__(hass, LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
 
-        # link to the base Redback device
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, site_id)},
-            manufacturer="Redback Technologies",
-            model=coordinator.inverter_info["ModelName"],
-            name=coordinator.config_entry.data["displayname"],
-            sw_version=coordinator.inverter_info["FirmwareVersion"],
-            configuration_url="https://portal.redbacktech.com/",
+    async def _async_update_data(self):
+        """Fetch system status from Redback."""
+        LOGGER.debug(
+            "Syncing data with Redback (entry_id=%s)", self.config_entry.entry_id
         )
+
+        try:
+            # the Redback integration has built-in timers to rate-limit the data updates and not hammer the API
+            self.inverter_info = await self.redback.getInverterInfo()
+            self.energy_data = await self.redback.getEnergyData()
+        except RedbackError as err:
+            raise UpdateFailed(f"HTTP error: {err}") from err
+        except RedbackConnectionError as err:
+            raise UpdateFailed(f"Connection error: {err}") from err
+        except RedbackAPIError as err:
+            raise UpdateFailed(f"API error: {err}") from err
+
+        return self.energy_data
+
