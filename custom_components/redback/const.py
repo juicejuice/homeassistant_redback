@@ -15,3 +15,6 @@ API_METHODS = [
     "public",
     "private",
 ]
+
+INVERTER_MODES = ["NoMode", "Auto", "ChargeBattery", "DischargeBattery", "ImportPower", "ExportPower", "Conserve", "Offgrid", "Hibernate", "BuyPower", "SellPower", "ForceChargeBattery", "ForceDischargeBattery", "Stop"]
+INVERTER_STATUS = ["OK", "Offline", "Fault"]

@@ -10,6 +10,7 @@ import json
 from json.decoder import JSONDecodeError
 
 
+
 class RedbackError(Exception):
     """Redback Inverter general HTTP error"""
 
@@ -40,10 +41,15 @@ class RedbackInverter:
     _energyDataNextUpdate = datetime.now()
     _inverterInfoUpdateInterval = timedelta(minutes=15)
     _inverterInfoNextUpdate = datetime.now()
+    _scheduleData = None
+    _scheduleDataUpdateInterval = timedelta(minutes=1)
+    _scheduleDataNextUpdate = datetime.now()
     _apiPublicRequestMap = {
         "public_BasicData": "EnergyData/With/Nodes",
         "public_StaticData": "EnergyData/{self.siteId}/Static",
-        "public_DynamicData": "EnergyData/{self.siteId}/Dynamic?metadata=true"
+        "public_DynamicData": "EnergyData/{self.siteId}/Dynamic?metadata=true",
+        "public_ScheduleData": "Schedule/By/Site/{self.siteId}?includeStale=false",
+        "public_ConfigData": "Configuration/{self.siteId}/Configuration"
     }
     _ordinalMap = {
         "first": 1,
@@ -264,6 +270,7 @@ class RedbackInverter:
 
             else:
                 dataPacket = (await self._apiRequest("public_StaticData"))["Data"]
+                dataConfig = (await self._apiRequest("public_ConfigData"))["Data"]
                 staticData = dataPacket["StaticData"]
                 nodesData = dataPacket["Nodes"][0]["StaticData"] # assumes node 0 is the inverter, node 1 is usually house load
                 self._inverterInfo = staticData["SiteDetails"]
@@ -277,7 +284,17 @@ class RedbackInverter:
                 self._inverterInfo["SoftwareVersion"] = nodesData["SoftwareVersion"]
                 self._inverterInfo["FirmwareVersion"] = nodesData["FirmwareVersion"]
                 self._inverterInfo["SerialNumber"] = nodesData["Id"]
-
+                self._inverterInfo["Status"] = staticData["Status"]
+                self._inverterInfo["BatteryMaxChargePowerW"] = staticData["SiteDetails"]["BatteryMaxChargePowerkW"] * 1000
+                self._inverterInfo["BatteryMaxDischargePowerW"] = staticData["SiteDetails"]["BatteryMaxDischargePowerkW"] * 1000
+                self._inverterInfo["InverterMaxExportPowerW"] = staticData["SiteDetails"]["InverterMaxExportPowerkW"] * 1000
+                self._inverterInfo["InverterMaxImportPowerW"] = staticData["SiteDetails"]["InverterMaxImportPowerkW"] * 1000
+                self._inverterInfo["UsableBatteryCapacityOnGridkWh"] = staticData["SiteDetails"]["BatteryCapacitykWh"] * (1-dataConfig["MinSoC0to1"])
+                self._inverterInfo["MinSoC0to1"] = dataConfig["MinSoC0to1"]
+                self._inverterInfo["MinOffgridSoC0to1"] = dataConfig["MinOffgridSoC0to1"]
+                                
+                
+                
                 # Public API keys: BatteryMaxChargePowerkW, BatteryMaxDischargePowerkW, BatteryCapacitykWh, UsableBatteryCapacitykWh, BatteryModels, PanelModel, PanelSizekW, SystemType, InverterMaxExportPowerkW, InverterMaxImportPowerkW, RemoteAccessConnection.Type, NMI, CommissioningDate, ModelName, BatteryCount, SoftwareVersion, FirmwareVersion, SerialNumber
 
         return self._inverterInfo
@@ -307,6 +324,8 @@ class RedbackInverter:
                 self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 self._energyData["ActiveNetPowerInstantaneouskW"] = self._energyData["ActiveExportedPowerInstantaneouskW"] - self._energyData["ActiveImportedPowerInstantaneouskW"]
                 self._energyData["CurrentInstantaneousA"] = sum(list(map(lambda x: x["CurrentInstantaneousA"], self._energyData["Phases"])))
+                self._energyData["InverterMode"] = self._energyData["Inverters"][0]["PowerMode"]["InverterMode"] 
+                self._energyData["InverterPowerW"] = self._energyData["Inverters"][0]["PowerMode"]["PowerW"] 
                 del self._energyData["TimestampUtc"]
                 del self._energyData["SiteId"]
                 del self._energyData["Inverters"]
@@ -315,8 +334,10 @@ class RedbackInverter:
                 # Public API keys: FrequencyInstantaneousHz, BatterySoCInstantaneous0to1, PvPowerInstantaneouskW, InverterTemperatureC, BatteryPowerNegativeIsChargingkW, PvAllTimeEnergykWh, ExportAllTimeEnergykWh, ImportAllTimeEnergykWh, LoadAllTimeEnergykWh, Status, VoltageInstantaneousV, ActiveExportedPowerInstantaneouskW, ActiveImportedPowerInstantaneouskW
 
         return self._energyData
+    
 
 class TestRedbackInverter(RedbackInverter):
+    
     """Test class for Redback Inverter integration, returns sample data without any API calls"""
 
     async def _apiRequest(self, endpoint):
