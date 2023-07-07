@@ -1,7 +1,9 @@
 """Redback sensors for the Redback integration."""
 from __future__ import annotations
+from collections.abc import Mapping
 
 from datetime import (datetime, timedelta)
+from typing import Any
 from homeassistant.core import (
     HomeAssistant,
     callback,
@@ -31,8 +33,11 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorStateClass,
 )
-
-from .const import DOMAIN, LOGGER
+from homeassistant.components.select import (
+    SelectEntity,
+    SelectEntityDescription,
+)
+from .const import DOMAIN, LOGGER, INVERTER_MODES, INVERTER_STATUS
 from .entity import RedbackEntity
 
 
@@ -332,6 +337,65 @@ async def async_setup_entry(
                     "data_source": "$calc$ float(ed['PvPowerInstantaneouskW']) + float(ed['BatteryPowerNegativeIsChargingkW']) - float(ed['ActiveExportedPowerInstantaneouskW']) + float(ed['ActiveImportedPowerInstantaneouskW'])",
                 },
             ),
+            RedbackStatusSensor(
+                coordinator,
+                {
+                    "name": "Inverter Status",
+                    "id_suffix": "inverter_status",
+                    "data_source": "Status",
+                }
+            ),
+            RedbackPowerSensorStatic(
+                coordinator,
+                {
+                    "name": "Inverter Max Export Power",
+                    "id_suffix": "inverter_max_export_power",
+                    "data_source": "InverterMaxExportPowerW",
+                },
+            ),
+            RedbackPowerSensorStatic(
+                coordinator,
+                {
+                    "name": "Inverter Max Import Power",
+                    "id_suffix": "inverter_max_import_power",
+                    "data_source": "InverterMaxImportPowerW",
+                },
+            ),
+            
+            RedbackPowerSensorW(
+                coordinator,
+                {
+                    "name": "Inverter Power Setpoint",
+                    "id_suffix": "inverter_powerw",
+                    "data_source": "InverterPowerW",
+                },
+            ),
+            RedbackInverterModeSensor(
+                coordinator,
+                {
+                    "name": "Inverter Mode",
+                    "id_suffix": "inverter_mode",
+                    "data_source": "InverterMode",
+                },
+            ),
+            RedBackSoftwareVersionSensor(
+                coordinator,
+                {
+                    "name": "Software Version",
+                    "id_suffix": "software_version",
+                    "data_source": "SoftwareVersion",
+                }
+            ),
+            RedBackSoftwareVersionSensor(
+                coordinator,
+                {
+                    "name": "Serial Number",
+                    "id_suffix": "serial_number",
+                    "data_source": "SerialNumber",
+                }
+            ),
+            
+
         ]
         if hasBattery:
             entities.extend([
@@ -341,9 +405,29 @@ async def async_setup_entry(
                         "name": "Battery SoC",
                         "id_suffix": "battery_soc",
                         "data_source": "BatterySoCInstantaneous0to1",
+                        "data_source_2": "MinSoC0to1",
                         "convertPercent": True,
                     },
                 ),
+                RedbackChargeSensorInfo(
+                    coordinator,
+                    {
+                        "name": "Battery Min On Grid SoC",
+                        "id_suffix": "battery_min_ongrid_soc0to1",
+                        "data_source": "MinSoC0to1",
+                        "convertPercent": True,
+                    },
+                ),
+                RedbackChargeSensorInfo(
+                    coordinator,
+                    {
+                        "name": "Battery Min off Grid SoC",
+                        "id_suffix": "battery_min_offgrid_soc0to1",
+                        "data_source": "MinOffgridSoC0to1",
+                        "convertPercent": True,
+                    },
+                ),
+                
                 RedbackPowerSensor(
                     coordinator,
                     {
@@ -380,6 +464,22 @@ async def async_setup_entry(
                         "direction": "negative",
                     },
                 ),
+                RedbackPowerSensorStatic(
+                    coordinator,
+                    {
+                        "name": "Battery Max Charge Power",
+                        "id_suffix": "battery_max_charge_power",
+                        "data_source": "BatteryMaxChargePowerW",
+                    },
+                ),
+                RedbackPowerSensorStatic(
+                    coordinator,
+                    {
+                        "name": "Battery Max Discharge Power",
+                        "id_suffix": "battery_max_discharge_power",
+                        "data_source": "BatteryMaxDischargePowerW",
+                    },
+                ),
                 RedbackEnergyStorageSensor(
                     coordinator,
                     {
@@ -391,9 +491,17 @@ async def async_setup_entry(
                 RedbackEnergyStorageSensor(
                     coordinator,
                     {
-                        "name": "Battery Capacity Usable",
-                        "id_suffix": "battery_capacity_usable",
+                        "name": "Battery Capacity Usable Off Grid",
+                        "id_suffix": "battery_capacity_usable_off_grid",
                         "data_source": "UsableBatteryCapacitykWh",
+                    },
+                ),
+                RedbackEnergyStorageSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Capacity Usable On Grid",
+                        "id_suffix": "battery_capacity_usable_on_grid",
+                        "data_source": "UsableBatteryCapacityOnGridkWh",
                     },
                 ),
             ])
@@ -408,6 +516,29 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_device_class = SensorDeviceClass.BATTERY
+    
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+    
+    
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        if self.convertPercent: self._attr_native_value *= 100
+        self.async_write_ha_state()
+
+class RedbackChargeSensorInfo(RedbackEntity, SensorEntity):
+    """Sensor for battery state-of-charge"""
+
+    _attr_name = "SoC"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_min_ongrid_soc = "MinSoC0to1"
 
     @property
     def unique_id(self) -> str:
@@ -418,7 +549,8 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self._attr_native_value = self.coordinator.inverter_info[self.data_source]
+        self._attr_min_ongrid_soc = self.coordinator.inverter_info["MinSoC0to1"]
         if self.convertPercent: self._attr_native_value *= 100
         self.async_write_ha_state()
 
@@ -518,6 +650,42 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
         self._attr_native_value = measurement
         if self.convertkW: self._attr_native_value /= 1000 # convert from W to kW
         self.async_write_ha_state()
+        
+class RedbackPowerSensorStatic(RedbackEntity, SensorEntity):
+    _attr_name = "Power"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_device_class = SensorDeviceClass.POWER
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.inverter_info[self.data_source]
+        self.async_write_ha_state()
+
+class RedbackPowerSensorW(RedbackEntity, SensorEntity):
+    _attr_name = "Power"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_device_class = SensorDeviceClass.POWER
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data.get(self.data_source, 0)
+        self.async_write_ha_state()
 
 class RedbackEnergySensor(RedbackEntity, SensorEntity):
     """Sensor for energy"""
@@ -609,3 +777,68 @@ class RedbackCurrentSensor(RedbackEntity, SensorEntity):
         LOGGER.debug("Updating entity: %s", self.unique_id)
         self._attr_native_value = self.coordinator.energy_data[self.data_source]
         self.async_write_ha_state()
+
+class RedbackStatusSensor(RedbackEntity, SensorEntity):
+    """Sensor for state"""
+
+    _attr_name = "State"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = INVERTER_STATUS
+    _attr_native_unit_of_measurement = None
+    _attr_icon = "mdi:information-outline"
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.inverter_info[self.data_source]
+        self.async_write_ha_state()
+        
+class RedbackInverterModeSensor(RedbackEntity, SensorEntity):
+    """Sensor for inverter mode"""
+
+    _attr_name = "state"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = INVERTER_MODES
+    _attr_native_unit_of_measurement = None
+    _attr_icon = "mdi:information-outline"
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self.async_write_ha_state()
+        
+class RedBackSoftwareVersionSensor(RedbackEntity, SensorEntity ):
+    """Sensor for software version"""
+
+    _attr_name = "string"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_native_unit_of_measurement = None
+    _attr_icon = "mdi:information-outline"
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+        
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)        
+        self._attr_native_value = self.coordinator.inverter_info[self.data_source]
+        self.async_write_ha_state()
+
+
+        
