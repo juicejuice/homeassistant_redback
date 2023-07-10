@@ -431,15 +431,15 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return additional pieces of information about the price."""
-        interval = self.coordinator.inverter_info
+        dataAttributes = self.coordinator.inverter_info
 
-        if interval is None:
+        if dataAttributes is None:
             data["min_offgrid_soc_0to1"] = None
             data["min_ongrid_soc_0to1"] = None
         else:
             data = {
-                "min_offgrid_soc_0to1": interval["MinOffgridSoC0to1"],
-                "min_ongrid_soc_0to1": interval["MinSoC0to1"]
+                "min_offgrid_soc_0to1": dataAttributes["MinOffgridSoC0to1"],
+                "min_ongrid_soc_0to1": dataAttributes["MinSoC0to1"]
             }
         return data
         
@@ -632,19 +632,19 @@ class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return additional pieces of information about the price."""
-        interval = self.coordinator.inverter_info
+        dataAttributes = self.coordinator.inverter_info
 
-        if interval is None:
+        if dataAttributes is None:
             data["usable_battery_offgrid_kwh"] = None
             data["usable_battery_ongrid_kwh"] = None
             data["max_discharge_power_w"] = None
             data["max_charge_power_w"] = None
         else: 
             data = {
-				"usable_battery_offgrid_kwh": interval["UsableBatteryCapacitykWh"],
-				"usable_battery_ongrid_kwh": interval["UsableBatteryCapacityOnGridkWh"],
-				"max_discharge_power_w": interval["BatteryMaxDischargePowerW"],
-				"max_charge_power_w": interval["BatteryMaxChargePowerW"]
+				"usable_battery_offgrid_kwh": dataAttributes["UsableBatteryCapacitykWh"],
+				"usable_battery_ongrid_kwh": dataAttributes["UsableBatteryCapacityOnGridkWh"],
+				"max_discharge_power_w": dataAttributes["BatteryMaxDischargePowerW"],
+				"max_charge_power_w": dataAttributes["BatteryMaxChargePowerW"]
 			}
         return data
 
@@ -694,9 +694,9 @@ class RedbackStatusSensor(RedbackEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return additional pieces of information about the price."""
-        interval = self.coordinator.inverter_info
+        dataAttributes = self.coordinator.inverter_info
 
-        if interval is None:
+        if dataAttributes is None:
             data["serial_number"] = None
             data["software_version"] = None
             data["ross_version"] = None
@@ -708,14 +708,14 @@ class RedbackStatusSensor(RedbackEntity, SensorEntity):
             
         else: 
             data = {
-				"serial_number": interval["SerialNumber"],
-				"software_version": interval["SoftwareVersion"],
-				"ross_version": interval["SoftwareVersion"],
-                "model_name": interval["ModelName"],
-                "system_type": interval["SystemType"],
-                "site_id": interval["SiteId"],
-                "inverter_max_export_power_w": interval["InverterMaxExportPowerW"],
-                "inverter_max_import_power_w": interval["InverterMaxImportPowerW"]
+				"serial_number": dataAttributes["SerialNumber"],
+				"software_version": dataAttributes["SoftwareVersion"],
+				"ross_version": dataAttributes["SoftwareVersion"],
+                "model_name": dataAttributes["ModelName"],
+                "system_type": dataAttributes["SystemType"],
+                "site_id": dataAttributes["SiteId"],
+                "inverter_max_export_power_w": dataAttributes["InverterMaxExportPowerW"],
+                "inverter_max_import_power_w": dataAttributes["InverterMaxImportPowerW"]
 			}
         return data
 
@@ -743,13 +743,13 @@ class RedbackInverterModeSensor(RedbackEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
         """Return additional pieces of information about the price."""
-        interval = self.coordinator.energy_data
+        dataAttributes = self.coordinator.energy_data
 
-        if interval is None:
+        if dataAttributes is None:
             data["inverter_power_setting"] = None
         else: 
             data = {
-				"inverter_power_setting": interval["InverterPowerW"]
+				"inverter_power_setting": dataAttributes["InverterPowerW"]
 			}
         return data
 
