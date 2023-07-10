@@ -360,7 +360,7 @@ async def async_setup_entry(
                     coordinator,
                     {
                         "name": "Battery SoC",
-                        "id_suffix": "battery_cur_soc",
+                        "id_suffix": "battery_soc",
                         "data_source": "BatterySoCInstantaneous0to1",
                         "convertPercent": True,
                     },
