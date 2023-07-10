@@ -360,9 +360,17 @@ async def async_setup_entry(
                     coordinator,
                     {
                         "name": "Battery SoC",
-                        "id_suffix": "battery_soc",
+                        "id_suffix": "battery_cur_soc",
                         "data_source": "BatterySoCInstantaneous0to1",
                         "convertPercent": True,
+                    },
+                ),
+                RedbackPowerSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Power Flow",
+                        "id_suffix": "battery_power",
+                        "data_source": "BatteryPowerNegativeIsChargingkW",
                     },
                 ),
                 RedbackPowerSensor(
@@ -409,6 +417,14 @@ async def async_setup_entry(
                         "data_source": "BatteryCapacitykWh",
                     },
                 ),
+                RedbackBatteryChargeSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Current Storage",
+                        "id_suffix": "battery_current_storage",
+                        "data_source": "",
+                    },
+                ),
             ])
 
     async_add_entities(entities)
@@ -430,7 +446,7 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return additional pieces of information about the price."""
+        """Return additional pieces of information."""
         dataAttributes = self.coordinator.inverter_info
 
         if dataAttributes is None:
@@ -631,7 +647,7 @@ class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
     
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return additional pieces of information about the price."""
+        """Return additional pieces of information."""
         dataAttributes = self.coordinator.inverter_info
 
         if dataAttributes is None:
@@ -693,7 +709,7 @@ class RedbackStatusSensor(RedbackEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return additional pieces of information about the price."""
+        """Return additional pieces of information."""
         dataAttributes = self.coordinator.inverter_info
 
         if dataAttributes is None:
@@ -742,7 +758,7 @@ class RedbackInverterModeSensor(RedbackEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
-        """Return additional pieces of information about the price."""
+        """Return additional pieces of information."""
         dataAttributes = self.coordinator.energy_data
 
         if dataAttributes is None:
@@ -759,6 +775,41 @@ class RedbackInverterModeSensor(RedbackEntity, SensorEntity):
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
         self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self.async_write_ha_state()
+        
+class RedbackBatteryChargeSensor(RedbackEntity, SensorEntity):
+    """Sensor for inverter mode"""
+
+    _attr_name = "Energy Storage"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_device_class = SensorDeviceClass.ENERGY_STORAGE 
+    _attr_icon = "mdi:home-battery"
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @property
+    def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Return additional pieces of information."""
+        dataAttributesEnergy = self.coordinator.energy_data
+        dataAttributesInfo = self.coordinator.inverter_info
+
+        data = {
+		    "battery_current_ongrid_usable": (dataAttributesEnergy["BatterySoCInstantaneous0to1"]  - dataAttributesInfo["MinSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"],
+            "battery_current_offgrid_usable": (dataAttributesEnergy["BatterySoCInstantaneous0to1"] - dataAttributesInfo["MinOffgridSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"]
+			}
+        return data
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        batterySoc= self.coordinator.energy_data["BatterySoCInstantaneous0to1"]
+        batteryCapacity= self.coordinator.inverter_info["BatteryCapacitykWh"]
+        self._attr_native_value = batterySoc * batteryCapacity
         self.async_write_ha_state()
         
 
