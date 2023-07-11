@@ -365,14 +365,6 @@ async def async_setup_entry(
                         "convertPercent": True,
                     },
                 ),
-                RedbackChargeSensorRaw(
-                    coordinator,
-                    {
-                        "name": "Battery SoC Raw",
-                        "id_suffix": "battery_soc_raw",
-                        "data_source": "BatterySoCInstantaneous0to1",
-                    },
-                ),
                 RedbackPowerSensor(
                     coordinator,
                     {
@@ -473,28 +465,7 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
         self._attr_native_value = self.coordinator.energy_data[self.data_source]
         if self.convertPercent: self._attr_native_value *= 100
         self.async_write_ha_state()
-
-class RedbackChargeSensorRaw(RedbackEntity, SensorEntity):
-    """Sensor for battery state-of-charge"""
-
-    _attr_name = None
-    _attr_has_entity_name = True
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_device_class = SensorDeviceClass.BATTERY
-    
-    @property
-    def unique_id(self) -> str:
-        """Device Uniqueid."""
-        return f"{self.base_unique_id}_{self.id_suffix}"
-        
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Handle updated data from the coordinator."""
-        LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
-        self.async_write_ha_state()
-
-        
+ 
 class RedbackTempSensor(RedbackEntity, SensorEntity):
     """Sensor for temperature"""
 
