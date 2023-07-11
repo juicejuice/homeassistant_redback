@@ -635,7 +635,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
             measurement = 0 - min(measurement, 0)
         self._attr_last_reset = datetime.now() - timedelta(minutes=1)
         self._attr_native_value = (measurement / 60) # we"re measuring in hours, but reporting in minutes, so divide out accordingly
-        if self.convertkW: self._attr_native_value / 1000 # convert from W to kW
+        if self.convertkW: self._attr_native_value /= 1000 # convert from W to kW
         self.async_write_ha_state()
 
 class RedbackEnergyMeter(RedbackEntity, SensorEntity):
