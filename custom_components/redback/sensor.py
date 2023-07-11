@@ -365,6 +365,14 @@ async def async_setup_entry(
                         "convertPercent": True,
                     },
                 ),
+                RedbackChargeSensorRaw(
+                    coordinator,
+                    {
+                        "name": "Battery SoC Raw",
+                        "id_suffix": "battery_soc_raw",
+                        "data_source": "BatterySoCInstantaneous0to1",
+                    },
+                ),
                 RedbackPowerSensor(
                     coordinator,
                     {
@@ -429,7 +437,6 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
-
 class RedbackChargeSensor(RedbackEntity, SensorEntity):
     """Sensor for battery state-of-charge"""
 
@@ -437,7 +444,7 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_device_class = SensorDeviceClass.ENERGY
     
     @property
     def unique_id(self) -> str:
@@ -454,11 +461,10 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
             data["min_ongrid_soc_0to1"] = None
         else:
             data = {
-                "min_offgrid_soc_0to1": dataAttributes["MinOffgridSoC0to1"],
-                "min_ongrid_soc_0to1": dataAttributes["MinSoC0to1"]
+                "min_offgrid_soc_0to1": (dataAttributes["MinOffgridSoC0to1"] ),
+                "min_ongrid_soc_0to1": (dataAttributes["MinSoC0to1"] )
             }
         return data
-        
     
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -468,6 +474,27 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
         if self.convertPercent: self._attr_native_value *= 100
         self.async_write_ha_state()
 
+class RedbackChargeSensorRaw(RedbackEntity, SensorEntity):
+    """Sensor for battery state-of-charge"""
+
+    _attr_name = None
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_device_class = SensorDeviceClass.ENERGY
+    
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+        
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self.async_write_ha_state()
+
+        
 class RedbackTempSensor(RedbackEntity, SensorEntity):
     """Sensor for temperature"""
 
@@ -607,8 +634,8 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
         else:
             measurement = 0 - min(measurement, 0)
         self._attr_last_reset = datetime.now() - timedelta(minutes=1)
-        self._attr_native_value = measurement / 60 # we"re measuring in hours, but reporting in minutes, so divide out accordingly
-        if self.convertkW: self._attr_native_value /= 1000 # convert from W to kW
+        self._attr_native_value = (measurement / 60) # we"re measuring in hours, but reporting in minutes, so divide out accordingly
+        if self.convertkW: self._attr_native_value / 1000 # convert from W to kW
         self.async_write_ha_state()
 
 class RedbackEnergyMeter(RedbackEntity, SensorEntity):
@@ -690,7 +717,7 @@ class RedbackCurrentSensor(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self._attr_native_value = round(self.coordinator.energy_data[self.data_source],0)
         self.async_write_ha_state()
 
 class RedbackStatusSensor(RedbackEntity, SensorEntity):
@@ -798,8 +825,8 @@ class RedbackBatteryChargeSensor(RedbackEntity, SensorEntity):
         dataAttributesInfo = self.coordinator.inverter_info
 
         data = {
-		    "battery_current_ongrid_usable": (dataAttributesEnergy["BatterySoCInstantaneous0to1"]  - dataAttributesInfo["MinSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"],
-            "battery_current_offgrid_usable": (dataAttributesEnergy["BatterySoCInstantaneous0to1"] - dataAttributesInfo["MinOffgridSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"]
+		    "battery_current_ongrid_usable": round( ((dataAttributesEnergy["BatterySoCInstantaneous0to1"]  - dataAttributesInfo["MinSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"]), 3),
+            "battery_current_offgrid_usable": round( ((dataAttributesEnergy["BatterySoCInstantaneous0to1"] - dataAttributesInfo["MinOffgridSoC0to1"]) * dataAttributesInfo["BatteryCapacitykWh"]), 3),
 			}
         return data
 
@@ -809,7 +836,7 @@ class RedbackBatteryChargeSensor(RedbackEntity, SensorEntity):
         LOGGER.debug("Updating entity: %s", self.unique_id)
         batterySoc= self.coordinator.energy_data["BatterySoCInstantaneous0to1"]
         batteryCapacity= self.coordinator.inverter_info["BatteryCapacitykWh"]
-        self._attr_native_value = batterySoc * batteryCapacity
+        self._attr_native_value = round( (batterySoc * batteryCapacity), 3)
         self.async_write_ha_state()
         
 
