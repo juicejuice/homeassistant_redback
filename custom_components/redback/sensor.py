@@ -437,7 +437,7 @@ class RedbackChargeSensor(RedbackEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = PERCENTAGE
-    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_device_class = SensorDeviceClass.ENERGY
     
     @property
     def unique_id(self) -> str:
