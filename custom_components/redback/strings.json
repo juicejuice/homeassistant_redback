@@ -11,7 +11,8 @@
           "client_id": "Redback ID",
           "auth": "Redback Authentication",
           "site_index": "Redback Site (for multiple inverters)"
-        },
+        }
+      },
       "reauth_confirm": {
         "title": "Reauthenticate to Redback API",
         "description": "Reconfigure this device to restore functionality.",
