@@ -141,7 +141,13 @@ class RedbackInverter:
                 ) from e
 
             # build authorization string
-            self._OAuth2_bearer_token = data['token_type'] + ' ' + data['access_token']
+            # (KeyError means the auth was unsuccessful)
+            try:
+                self._OAuth2_bearer_token = data['token_type'] + ' ' + data['access_token']
+            except KeyError as e:
+                raise RedbackAPIError(
+                    f"OAuth2 Error. {data['error']}: {data['error_description']}"
+                )
 
             # set update timeout
             self._OAuth2_next_update = datetime.now() + timedelta(seconds=int(data['expires_in']))

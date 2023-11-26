@@ -1,7 +1,8 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful"
         },
         "error": {
             "cannot_connect": "Failed to connect",
@@ -20,6 +21,14 @@
                     "auth": "Redback Authentication",
                     "site_index": "Redback Site (for multiple inverters)"
                 }
+            },
+            "reauth_confirm": {
+              "title": "Reauthenticate to Redback API",
+              "description": "Reconfigure this device to restore functionality.",
+              "data": {
+                "client_id": "Redback ID",
+                "auth": "Redback Authentication"
+              }
             }
         }
     }

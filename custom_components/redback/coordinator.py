@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-# from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .const import DOMAIN, LOGGER, SCAN_INTERVAL, TEST_MODE
 from .redbacklib import RedbackInverter, TestRedbackInverter, RedbackError, RedbackAPIError, RedbackConnectionError
@@ -49,7 +49,8 @@ class RedbackDataUpdateCoordinator(DataUpdateCoordinator):
         except RedbackConnectionError as err:
             raise UpdateFailed(f"Connection error: {err}") from err
         except RedbackAPIError as err:
-            raise UpdateFailed(f"API error: {err}") from err
+            LOGGER.debug(f"API error: {err}")
+            raise ConfigEntryAuthFailed("Invalid credentials") from err
 
         return self.energy_data
 
