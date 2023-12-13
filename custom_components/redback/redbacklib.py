@@ -91,7 +91,7 @@ class RedbackInverter:
         # a "BatteryCount" of zero. This is a less elegant way to assess if a battery
         # is present. If Redback resolve that bug in their API, this can be removed.
         energy_data = await self.getEnergyData()
-        return energy_data.get("BatteryPowerNegativeIsChargingkW", None) is not None
+        return energy_data.get("BatterySoCInstantaneous0to1", None) is not None
 
         # inverter_info = await self.getInverterInfo()
         # return inverter_info.get("BatteryCount", 0) > 0
