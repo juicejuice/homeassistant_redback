@@ -28,7 +28,7 @@ class RedbackEntity(CoordinatorEntity[RedbackDataUpdateCoordinator]):
         if details:
             self._attr_name = details["name"]
             self.id_suffix = details["id_suffix"]
-            self.data_source = details["data_source"]
+            self.data_source = details.get("data_source")
             self.direction = details.get("direction")
             self.convertPercent = details.get("convertPercent")
             self.convertkW = details.get("convertkW")
