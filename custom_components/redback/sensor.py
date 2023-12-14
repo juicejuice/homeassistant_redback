@@ -288,7 +288,7 @@ async def async_setup_entry(
                 {
                     "name": "Site Load",
                     "id_suffix": "load_power",
-                    "data_source": "$calc$ float(ed['PvPowerInstantaneouskW']) + float(ed['BatteryPowerNegativeIsChargingkW']) - float(ed['ActiveExportedPowerInstantaneouskW']) + float(ed['ActiveImportedPowerInstantaneouskW'])",
+                    "data_source": "$calc$ float(ed['PvPowerInstantaneouskW']) + float(ed['BatteryPowerNegativeIsChargingkW'] if ed['BatteryPowerNegativeIsChargingkW'] else 0) - float(ed['ActiveExportedPowerInstantaneouskW']) + float(ed['ActiveImportedPowerInstantaneouskW'])",
                 },
             ),
         ]
