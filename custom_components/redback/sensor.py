@@ -511,8 +511,9 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
         time_delta = sample_time - self._last_update    # Assume sample value is representative of the time since last update
         self._last_update = sample_time
         hours = time_delta.total_seconds()/3600
-        self._attr_native_value = measurement * hours  # multiply watts by hours to get Wh
-        if self.convertkW: self._attr_native_value /= 1000 # convert from Wh to kWh
+        measurement = measurement * hours  # multiply watts by hours to get Wh        
+        if self.convertkW: self.measurement /= 1000 # convert from Wh to kWh
+        self._attr_native_value += measurement 
         self.async_write_ha_state()
 
 class RedbackEnergyMeter(RedbackEntity, SensorEntity):
