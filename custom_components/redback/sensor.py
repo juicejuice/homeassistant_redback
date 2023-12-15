@@ -486,6 +486,13 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
     _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
     _attr_device_class = SensorDeviceClass.ENERGY
 
+    def __init__(self, coordinator: RedbackDataUpdateCoordinator, details) -> None:        
+        super().__init__(coordinator)
+        self._attr_native_value = 0
+        self._attr_last_reset = datetime.now()
+        self._last_update = datetime.now()
+        
+
     @property
     def unique_id(self) -> str:
         """Device Uniqueid."""
@@ -500,9 +507,12 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
             measurement = max(measurement, 0)
         else:
             measurement = 0 - min(measurement, 0)
-        self._attr_last_reset = datetime.now() - timedelta(minutes=1)
-        self._attr_native_value = measurement / 60 # we're measuring in hours, but reporting in minutes, so divide out accordingly
-        if self.convertkW: self._attr_native_value /= 1000 # convert from W to kW
+        sample_time = datetime.now()
+        time_delta = sample_time - self._last_update    # Assume sample value is representative of the time since last update
+        self._last_update = sample_time
+        hours = time_delta.total_seconds()/3600
+        self._attr_native_value = measurement * hours  # multiply watts by hours to get Wh
+        if self.convertkW: self._attr_native_value /= 1000 # convert from Wh to kWh
         self.async_write_ha_state()
 
 class RedbackEnergyMeter(RedbackEntity, SensorEntity):
