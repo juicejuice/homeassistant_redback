@@ -487,7 +487,7 @@ class RedbackEnergySensor(RedbackEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENERGY
 
     def __init__(self, coordinator: RedbackDataUpdateCoordinator, details) -> None:        
-        super().__init__(coordinator)
+        super().__init__(coordinator, details)
         self._attr_native_value = 0
         self._attr_last_reset = datetime.now()
         self._last_update = datetime.now()
