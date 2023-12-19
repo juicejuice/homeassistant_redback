@@ -12,6 +12,14 @@
           "auth": "Redback Authentication",
           "site_index": "Redback Site (for multiple inverters)"
         }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate to Redback API",
+        "description": "Reconfigure this device to restore functionality.",
+        "data": {
+          "client_id": "Redback ID",
+          "auth": "Redback Authentication"
+        }
       }
     },
     "error": {
@@ -20,7 +28,8 @@
       "unknown": "[%key:common::config_flow::error::unknown%]"
     },
     "abort": {
-      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+      "reauth_successful": "Re-authentication was successful"
     }
   }
 }
