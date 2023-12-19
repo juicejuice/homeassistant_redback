@@ -1,16 +1,16 @@
 {
   "domain": "redback",
-  "name": "Redback Technologies Portal",
-  "codeowners": ["@juicejuice"],
+  "name": "Redback Technologies",
+  "codeowners": ["@cabberley"],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/juicejuice/homeassistant_redback",
+  "documentation": "https://github.com/cabberley/homeassistant_redback",
   "homekit": {},
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/juicejuice/homeassistant_redback/issues",
+  "issue_tracker": "https://github.com/cabberley/homeassistant_redback/issues",
   "loggers": ["redback"],
   "requirements": [],
   "ssdp": [],
-  "version": "0.3",
+  "version": "2023.12.2",
   "zeroconf": []
 }
