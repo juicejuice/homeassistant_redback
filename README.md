@@ -24,6 +24,8 @@ The "Redback Site" field is only required when you have multiple Redback inverte
 
 No further configuration is required. Errors will be reported in the log.
 
+Re-authentication of Redback devices is supported; Home Assistant will notify you when the previously working Redback API credentials expire. In this case, you can choose to re-configure from the integrations page and enter your new Redback API credentials. It is not possible to manually trigger re-authentication, but you can update credentials by hand by editing the `core.config_entries` file in the Home Assistant `.storage` folder (search for "redback" to find the configuration items).
+
 ## Usage
 
 The Redback Technologies data source is updated every minute by your inverter. This integration will automatically read the data every minute and update the relevant HA entities, e.g., "Grid Import Total".
