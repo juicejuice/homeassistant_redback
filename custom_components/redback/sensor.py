@@ -179,6 +179,14 @@ async def async_setup_entry(
     # Public API has different entities
     else:
         entities = [
+            RedbackStatusSensor(
+                coordinator,
+                {
+                    "name": "Status",
+                    "id_suffix": "status",
+                    "data_source": "Status",
+                },
+            ),
             RedbackVoltageSensor(
                 coordinator,
                 {
@@ -359,6 +367,25 @@ async def async_setup_entry(
 
     async_add_entities(entities)
 
+
+class RedbackStatusSensor(RedbackEntity, SensorEntity):
+    """Sensor for battery state-of-charge"""
+
+    _attr_name = "Status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["OK", "OFFLINE", "FAULT"]
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data[self.data_source].upper()
+        self.async_write_ha_state()
 
 class RedbackChargeSensor(RedbackEntity, SensorEntity):
     """Sensor for battery state-of-charge"""
