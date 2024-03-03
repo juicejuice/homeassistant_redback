@@ -489,7 +489,7 @@ class RedbackPowerSensor(RedbackEntity, SensorEntity):
         measurement = 0
         # dynamically calculated power measurement
         if self.data_source.startswith('$calc$'):
-            measurement = re.sub('^\$calc\$\s*', '', self.data_source)
+            measurement = re.sub(r'^\$calc\$\s*', '', self.data_source)
             ed = self.coordinator.energy_data
             measurement = float(eval(measurement, {'ed':ed}))
 
