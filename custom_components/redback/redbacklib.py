@@ -32,6 +32,7 @@ class RedbackInverter:
     _OAuth2_client_id = ""
     _OAuth2_client_secret = ""
     _OAuth2_bearer_token = ""
+    _OAuth2_expiry_offset = 30
     _OAuth2_next_update = datetime.now()
     _apiResponse = "json"
     _inverterInfo = None
@@ -149,8 +150,8 @@ class RedbackInverter:
                     f"OAuth2 Error. {data['error']}: {data['error_description']}"
                 )
 
-            # set update timeout
-            self._OAuth2_next_update = datetime.now() + timedelta(seconds=int(data['expires_in']))
+            # set update timeout, allowing an offset for potential transaction timeout
+            self._OAuth2_next_update = datetime.now() + timedelta(seconds=int(data['expires_in']) - self._OAuth2_expiry_offset)
 
         return self._OAuth2_bearer_token
 
