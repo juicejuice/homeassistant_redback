@@ -32,7 +32,7 @@ class RedbackInverter:
     _OAuth2_client_id = ""
     _OAuth2_client_secret = ""
     _OAuth2_bearer_token = ""
-    _OAuth2_expiry_offset = 30
+    _OAuth2_expiry_offset = 300
     _OAuth2_next_update = datetime.now()
     _apiResponse = "json"
     _inverterInfo = None
