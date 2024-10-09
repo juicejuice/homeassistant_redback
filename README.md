@@ -16,7 +16,7 @@ Install the repository through HACS (it should appear in the list of available i
 
 Once you have installed the component, it should be available for configuration through the user interface.
 
-To setup the integration, got to Configuration -> Integrations, and search for Redback Technologies Portal.
+To setup the integration, go to Configuration -> Integrations, and search for Redback Technologies Portal.
 
 Use the client ID and credential (secret) supplied by Redback support team. Client ID goes in "Redback ID" field and Credential goes in "Redback Authentication" field. You can also give the device a friendly name to suit your needs.
 

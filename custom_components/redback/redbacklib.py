@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 import json
 from json.decoder import JSONDecodeError
+import re
 
 
 class RedbackError(Exception):
@@ -209,7 +210,12 @@ class RedbackInverter:
         # check for API error (e.g. expired credentials or invalid serial)
         if not response.ok:
             message = await response.text()
-            raise RedbackAPIError(f"{response.status} {response.reason}. {message}")
+            # 500 Internal Server Error seems to indicate a temporary error state within the Redback API service
+            if response.status == 500 and re.match(response.reason, "internal server error", re.IGNORECASE):
+                raise RedbackError(f"{response.status} {response.reason}. {message}")
+            # otherwise, we most likely have expired credentials
+            else:
+                raise RedbackAPIError(f"{response.status} {response.reason}. {message}")
 
         # collect data packet
         try:
