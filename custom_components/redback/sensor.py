@@ -45,6 +45,7 @@ async def async_setup_entry(
     coordinator = hass.data[DOMAIN][entry.entry_id]
     privateAPI = coordinator.redback.isPrivateAPI()
     hasBattery = await coordinator.redback.hasBattery()
+    hasPVs = "PV_0_VoltageV" in coordinator.energy_data
 
     # Private API has different entities
     # Note: private API always creates battery entities, need examples without
@@ -178,6 +179,7 @@ async def async_setup_entry(
 
     # Public API has different entities
     else:
+        # basic entities which are common to every inverter
         entities = [
             RedbackStatusSensor(
                 coordinator,
@@ -185,6 +187,30 @@ async def async_setup_entry(
                     "name": "Status",
                     "id_suffix": "status",
                     "data_source": "Status",
+                },
+            ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current A",
+                    "id_suffix": "grid_a_a",
+                    "data_source": "CurrentInstantaneousA_A",
+                },
+            ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current B",
+                    "id_suffix": "grid_a_b",
+                    "data_source": "CurrentInstantaneousA_B",
+                },
+            ),
+            RedbackCurrentSensor(
+                coordinator,
+                {
+                    "name": "Grid Current C",
+                    "id_suffix": "grid_a_c",
+                    "data_source": "CurrentInstantaneousA_C",
                 },
             ),
             RedbackVoltageSensor(
@@ -300,6 +326,39 @@ async def async_setup_entry(
                 },
             ),
         ]
+
+        # additional entities for inverters with PV strings
+        if hasPVs:
+            for i in range(10):
+                if f"PV_{i}_VoltageV" not in coordinator.energy_data: break
+                entities.extend([
+                    RedbackVoltageSensor(
+                        coordinator,
+                        {
+                            "name": f"PV {i} Voltage",
+                            "id_suffix": f"pv_{i}_v",
+                            "data_source": f"PV_{i}_VoltageV",
+                        },
+                    ),
+                    RedbackCurrentSensor(
+                        coordinator,
+                        {
+                            "name": f"PV {i} Current",
+                            "id_suffix": f"pv_{i}_a",
+                            "data_source": f"PV_{i}_CurrentA",
+                        },
+                    ),
+                    RedbackPowerSensor(
+                        coordinator,
+                        {
+                            "name": f"PV {i} Power",
+                            "id_suffix": f"pv_{i}_kW",
+                            "data_source": f"PV_{i}_PowerkW",
+                        },
+                    ),
+                ])
+
+        # additional entities for inverters with batteries
         if hasBattery:
             entities.extend([
                 RedbackChargeSensor(
@@ -361,6 +420,22 @@ async def async_setup_entry(
                         "name": "Usable Battery Capacity",
                         "id_suffix": "battery_usable_capacity",
                         "data_source": "UsableBatteryCapacitykWh",
+                    },
+                ),
+                RedbackVoltageSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Voltage",
+                        "id_suffix": "battery_v",
+                        "data_source": "BatteryVoltageV",
+                    },
+                ),
+                RedbackCurrentSensor(
+                    coordinator,
+                    {
+                        "name": "Battery Current",
+                        "id_suffix": "battery_a",
+                        "data_source": "BatteryCurrentNegativeIsChargingA",
                     },
                 ),
             ])
@@ -446,6 +521,26 @@ class RedbackFrequencySensor(RedbackEntity, SensorEntity):
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
         self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        self.async_write_ha_state()
+
+class RedbackCurrentSensor(RedbackEntity, SensorEntity):
+    """Sensor for current"""
+
+    _attr_name = "Current"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
+    _attr_device_class = SensorDeviceClass.CURRENT
+
+    @property
+    def unique_id(self) -> str:
+        """Device Uniqueid."""
+        return f"{self.base_unique_id}_{self.id_suffix}"
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+        LOGGER.debug("Updating entity: %s", self.unique_id)
+        self._attr_native_value = self.coordinator.energy_data.get(self.data_source, 0)
         self.async_write_ha_state()
 
 class RedbackVoltageSensor(RedbackEntity, SensorEntity):

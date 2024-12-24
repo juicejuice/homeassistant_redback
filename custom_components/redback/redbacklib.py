@@ -42,9 +42,11 @@ class RedbackInverter:
     _inverterInfoUpdateInterval = timedelta(minutes=15)
     _inverterInfoNextUpdate = datetime.now()
     _apiPublicRequestMap = {
-        "public_BasicData": "EnergyData/With/Nodes",
-        "public_StaticData": "EnergyData/{self.siteId}/Static",
-        "public_DynamicData": "EnergyData/{self.siteId}/Dynamic?metadata=true"
+        "public_Auth": "https://api.redbacktech.com/Api/v2/Auth/token",
+        "public_BasicData": "https://api.redbacktech.com/Api/v2/EnergyData/With/Nodes",
+        "public_StaticData": "https://api.redbacktech.com/Api/v2/EnergyData/{self.siteId}/Static",
+        "public_DynamicData": "https://api.redbacktech.com/Api/v2.21/EnergyData/{self.siteId}/Dynamic?metadata=true",
+        "public_DynamicDataV2": "https://api.redbacktech.com/Api/v2/EnergyData/{self.siteId}/Dynamic?metadata=true"
     }
     _ordinalMap = {
         "first": 1,
@@ -77,7 +79,6 @@ class RedbackInverter:
 
         # Public API
         else:
-            self._apiBaseURL = "https://api.redbacktech.com/Api/v2/"
             self._OAuth2_client_id = auth_id.encode()
             self._OAuth2_client_secret = auth.encode()
 
@@ -95,7 +96,7 @@ class RedbackInverter:
 
         # do we need to request a new bearer token?
         if datetime.now() > self._OAuth2_next_update:
-            full_url = self._apiBaseURL + 'Auth/token'
+            full_url = self._apiPublicRequestMap["public_Auth"]
             data = b'client_id=' + self._OAuth2_client_id + b'&client_secret=' + self._OAuth2_client_secret
             headers = { "Content-Type": "application/x-www-form-urlencoded" }
 
@@ -165,7 +166,7 @@ class RedbackInverter:
         if endpoint.startswith("public_"):
             if not self.siteId and endpoint != "public_BasicData":
                 self.siteId = await self.getSiteId()
-            full_url = self._apiBaseURL + self._apiPublicRequestMap[endpoint]
+            full_url = self._apiPublicRequestMap[endpoint]
             full_url = eval(f"f'{full_url}'") # replace {vars} in full_url
             request_headers = {"authorization": await self._apiGetBearerToken()} 
 
@@ -316,10 +317,24 @@ class RedbackInverter:
                 self._energyData["VoltageInstantaneousV"] = round( sum(list(map(lambda x: x["VoltageInstantaneousV"], self._energyData["Phases"]))) / phaseCount * sqrt(phaseCount), 1)
                 self._energyData["ActiveExportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveExportedPowerInstantaneouskW"], self._energyData["Phases"])))
                 self._energyData["ActiveImportedPowerInstantaneouskW"] = sum(list(map(lambda x: x["ActiveImportedPowerInstantaneouskW"], self._energyData["Phases"])))
+                # gather extra details from v2.21 API
+                if "Battery" in self._energyData:
+                    self._energyData["BatteryCurrentNegativeIsChargingA"] = self._energyData["Battery"]["CurrentNegativeIsChargingA"]
+                    self._energyData["BatteryVoltageV"] =  self._energyData["Battery"]["VoltageV"]
+
+                if "PVs" in self._energyData:
+                    for counter, PV in enumerate(self._energyData["PVs"]):
+                        self._energyData["PV_" + str(counter) + "_VoltageV"] = PV["VoltageV"]
+                        self._energyData["PV_" + str(counter) + "_CurrentA"] = PV["CurrentA"]
+                        self._energyData["PV_" + str(counter) + "_PowerkW"] = PV["PowerkW"]
+
+                # cleanup
                 del self._energyData["TimestampUtc"]
                 del self._energyData["SiteId"]
                 del self._energyData["Inverters"]
                 del self._energyData["Phases"]
+                del self._energyData["Battery"]
+                del self._energyData["PVs"]
 
                 # Public API keys: FrequencyInstantaneousHz, BatterySoCInstantaneous0to1, PvPowerInstantaneouskW, InverterTemperatureC, BatteryPowerNegativeIsChargingkW, PvAllTimeEnergykWh, ExportAllTimeEnergykWh, ImportAllTimeEnergykWh, LoadAllTimeEnergykWh, Status, VoltageInstantaneousV, ActiveExportedPowerInstantaneouskW, ActiveImportedPowerInstantaneouskW
 
@@ -520,7 +535,7 @@ class TestRedbackInverter(RedbackInverter):
         elif endpoint == "public_DynamicData":
             return {
                 "Data": {
-                    "TimestampUtc": "2022-12-12T06:08:05Z",
+                    "TimestampUtc": "2024-12-10T22:47:40Z",
                     "SiteId": "S1234123412341",
                     "Phases": [
                         {
@@ -557,6 +572,8 @@ class TestRedbackInverter(RedbackInverter):
                     "ExportAllTimeEnergykWh": 2612.829,
                     "ImportAllTimeEnergykWh": 175.108,
                     "LoadAllTimeEnergykWh": 3157.7,
+                    "BatteryChargeAllTimeEnergykWh": 8856.1,
+                    "BatteryDischargeAllTimeEnergykWh": 8235.3,
                     "Status": "OK",
                     "Inverters": [
                         {
@@ -566,7 +583,57 @@ class TestRedbackInverter(RedbackInverter):
                                 "PowerW": 0
                             }
                         }
-                    ]
+                    ],
+                    "PVs": [
+                        {
+                            "CurrentA": 12.4,
+                            "VoltageV": 384.5,
+                            "PowerkW": 4.767
+                        },
+                        {
+                            "CurrentA": 12.4,
+                            "VoltageV": 384.4,
+                            "PowerkW": 4.788
+                        }
+                    ],
+                    "Battery": {
+                        "CurrentNegativeIsChargingA": 0.0,
+                        "VoltageV": 200.2,
+                        "VoltageType": "HV",
+                        "NumberOfModules": 4,
+                        "Cabinets": [
+                            {
+                                "TemperatureC": 0.0,
+                                "FanState": "Off"
+                            }
+                        ],
+                        "Modules": [
+                            {
+                                "CurrentNegativeIsChargingA": 0.0,
+                                "VoltageV": 50.09,
+                                "PowerNegativeIsChargingkW": 0.0,
+                                "SoC0To1": 0.98
+                            },
+                            {
+                                "CurrentNegativeIsChargingA": 0.0,
+                                "VoltageV": 50.02,
+                                "PowerNegativeIsChargingkW": 0.0,
+                                "SoC0To1": 0.98
+                            },
+                            {
+                                "CurrentNegativeIsChargingA": 0.0,
+                                "VoltageV": 50.06,
+                                "PowerNegativeIsChargingkW": 0.0,
+                                "SoC0To1": 0.98
+                            },
+                            {
+                                "CurrentNegativeIsChargingA": 0.0,
+                                "VoltageV": 50.03,
+                                "PowerNegativeIsChargingkW": 0.0,
+                                "SoC0To1": 0.98
+                            }
+                        ]
+                    }
                 },
                 "Metadata": {
                     "Latest": "/Api/v2/EnergyData/S1234123412341/Dynamic?metadata=True",
