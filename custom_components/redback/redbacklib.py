@@ -308,6 +308,12 @@ class RedbackInverter:
 
             else:
                 self._energyData = (await self._apiRequest("public_DynamicData"))["Data"]
+                # convert any None (null) values to zeros
+                for key in self._energyData:
+                    if self._energyData[key] == None: self._energyData[key] = 0
+                for phase in self._energyData["Phases"]:
+                    for key in phase:
+                        if phase[key] == None: phase[key] = 0
                 # gather individual voltage and current per phase
                 for phase in self._energyData["Phases"]:
                     self._energyData["VoltageInstantaneousV_" + phase["Id"]] = phase["VoltageInstantaneousV"]
