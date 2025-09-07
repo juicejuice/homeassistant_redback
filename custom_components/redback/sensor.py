@@ -655,7 +655,13 @@ class RedbackEnergyMeter(RedbackEntity, SensorEntity):
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
         LOGGER.debug("Updating entity: %s", self.unique_id)
-        self._attr_native_value = self.coordinator.energy_data[self.data_source]
+        value = self.coordinator.energy_data[self.data_source]
+        # energy meter zero values mean an unavailable meter
+        if value == 0:
+            self._attr_available = False
+        else:
+            self._attr_available = True
+            self._attr_native_value = value
         self.async_write_ha_state()
 
 class RedbackEnergyStorageSensor(RedbackEntity, SensorEntity):
