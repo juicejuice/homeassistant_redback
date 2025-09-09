@@ -88,8 +88,15 @@ class RedbackInverter:
     async def hasBattery(self):
         # Note: private API doesn't have "BatteryCount", need examples without
         # battery so the hasBattery() method can be updated to suit
-        inverter_info = await self.getInverterInfo()
-        return inverter_info.get("BatteryCount", 0) > 0
+
+        # Note: In some as yet unidentified circumstances the inverter info returns 
+        # a "BatteryCount" of zero. This is a less elegant way to assess if a battery
+        # is present. If Redback resolve that bug in their API, this can be removed.
+        energy_data = await self.getEnergyData()
+        return energy_data.get("BatterySoCInstantaneous0to1", None) is not None
+
+        # inverter_info = await self.getInverterInfo()
+        # return inverter_info.get("BatteryCount", 0) > 0
 
     async def _apiGetBearerToken(self):
         """Returns an active OAuth2 bearer token for use with public API methods"""
